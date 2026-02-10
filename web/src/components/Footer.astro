@@ -1,5 +1,7 @@
 ---
+const startYear = 2025;
 const currentYear = new Date().getFullYear();
+const yearDisplay = currentYear > startYear ? `${startYear}-${currentYear}` : `${startYear}`;
 ---
 
 <footer class="border-t border-border py-8" style="border-image: linear-gradient(to right, transparent, var(--color-border-light), transparent) 1;">
@@ -8,7 +10,7 @@ const currentYear = new Date().getFullYear();
       <div class="flex items-center gap-4 text-sm text-muted">
         <span class="font-mono text-muted-dark">send.to</span>
         <span class="text-border-light">/</span>
-        <span>&copy; {currentYear}</span>
+        <span>MIT License &copy; {yearDisplay} by sooua</span>
       </div>
       <div class="flex items-center gap-4 text-sm">
         <a href="/api-docs" class="text-muted transition-all duration-200 hover:translate-x-0.5 hover:text-primary" data-i18n="nav.apiDocs">API Docs</a>
