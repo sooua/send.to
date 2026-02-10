@@ -1,0 +1,35 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="404 - File not found - send.to">
+  <div class="flex flex-1 items-center justify-center px-6 py-24">
+    <div class="text-center" style="animation: scale-in 0.3s ease-out;">
+      <div class="mx-auto mb-8 max-w-md rounded-lg border border-border bg-codeblock p-6">
+        <div class="mb-3 flex items-center gap-2">
+          <div class="flex gap-1.5">
+            <span class="h-2.5 w-2.5 rounded-full bg-zinc-700 dark:bg-zinc-600"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-zinc-700 dark:bg-zinc-600"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-zinc-700 dark:bg-zinc-600"></span>
+          </div>
+          <span class="ml-2 font-mono text-xs text-muted-dark">terminal</span>
+        </div>
+        <pre class="text-left font-mono text-sm leading-relaxed"><span class="text-muted-dark">$</span> <span class="text-zinc-100">cat /file/you/requested</span>
+<span class="text-danger">cat: file not found (404)</span>
+<span class="text-muted-dark">$</span> <span class="animate-pulse text-zinc-400">_</span></pre>
+      </div>
+
+      <h1 class="mb-2 font-mono text-2xl font-bold text-primary" data-i18n="error.notFound">File not found</h1>
+      <p class="mb-6 text-sm text-muted" data-i18n="error.notFoundDesc">
+        The file may have expired, reached its download limit, or never existed.
+      </p>
+      <a
+        href="/"
+        class="btn-press inline-block cursor-pointer rounded-lg bg-white px-6 py-2.5 text-sm font-semibold text-black transition-all duration-200 hover:scale-[1.02] hover:bg-zinc-200"
+        data-i18n="error.backHome"
+      >
+        Back to home
+      </a>
+    </div>
+  </div>
+</BaseLayout>

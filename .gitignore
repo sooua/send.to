@@ -1,0 +1,37 @@
+build/
+pkg/
+bin/
+*.pyc
+*.egg-info/
+.idea/
+
+.tmp
+
+bower_components/
+node_modules/
+
+# Compiled binary
+sendto
+
+# Secrets and credentials
+.env
+.env.*
+*.key
+*.pem
+*.htpasswd
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Astro build cache
+web/.astro/
+web/dist/
+
+# Temp files
+.plan
+design-system/
+docs/

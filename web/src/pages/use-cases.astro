@@ -1,0 +1,209 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import CodeBlock from "../components/CodeBlock.astro";
+---
+
+<BaseLayout title="Use Cases - send.to">
+  <div class="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-16">
+    <div class="mb-12">
+      <h1 class="mb-3 font-mono text-3xl font-bold text-primary" data-i18n="usecase.title">Use Cases</h1>
+      <p class="text-muted" data-i18n="usecase.subtitle">
+        Real-world examples of how to use send.to with curl, GPG, OpenSSL, and other tools.
+      </p>
+    </div>
+
+    <div class="space-y-6">
+      <!-- 01: Upload multiple files -->
+      <div class="card-hover animate-on-scroll stagger-1 rounded-xl border border-border bg-surface p-4 sm:p-6">
+        <div class="mb-3 font-mono text-lg text-muted-dark">01</div>
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.multiUpload">Upload Multiple Files</h3>
+        <p class="text-sm text-muted" data-i18n="usecase.multiUploadDesc">
+          Upload multiple files at once using multipart form data. Combine downloads as ZIP or TAR archives.
+        </p>
+        <div class="mt-3 space-y-3">
+          <CodeBlock title="upload multiple files" titleKey="code.multiUpload" code={`<span class="code-comment" data-i18n="code.comment.multiUpload"># upload multiple files at once</span>
+
+<span class="code-prompt">$</span> curl -i -F <span class="code-string">filedata=@/tmp/hello.txt</span> \\
+    -F <span class="code-string">filedata=@/tmp/hello2.txt</span> \\
+    https://send.to/`} />
+          <CodeBlock title="combine as archive" titleKey="code.combineArchive" code={`<span class="code-comment" data-i18n="code.comment.combineArchive"># download as zip or tar.gz</span>
+
+<span class="code-prompt">$</span> curl https://send.to/<span class="code-string">(token1/hello.txt,token2/hello2.txt).zip</span>
+
+<span class="code-prompt">$</span> curl https://send.to/<span class="code-string">(token1/hello.txt,token2/hello2.txt).tar.gz</span>`} />
+        </div>
+      </div>
+
+      <!-- 02: Encrypt with GPG -->
+      <div class="card-hover animate-on-scroll stagger-2 rounded-xl border border-border bg-surface p-4 sm:p-6">
+        <div class="mb-3 font-mono text-lg text-muted-dark">02</div>
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.gpgEncrypt">Encrypt with GPG</h3>
+        <p class="text-sm text-muted" data-i18n="usecase.gpgEncryptDesc">
+          Encrypt files with GPG before transfer. Pipe through gpg for maximum security with your own keys.
+        </p>
+        <div class="mt-3 space-y-3">
+          <CodeBlock title="gpg encrypt & upload" titleKey="code.gpgEncrypt" code={`<span class="code-comment" data-i18n="code.comment.gpgEncrypt"># encrypt with gpg and upload</span>
+
+<span class="code-prompt">$</span> cat /tmp/hello.txt | gpg -ac -o- | \\
+    curl -X PUT --upload-file <span class="code-string">"-"</span> \\
+    https://send.to/test.txt`} />
+          <CodeBlock title="download & decrypt" titleKey="code.gpgDecrypt" code={`<span class="code-comment" data-i18n="code.comment.gpgDecrypt"># download and decrypt</span>
+
+<span class="code-prompt">$</span> curl https://send.to/token/test.txt | \\
+    gpg -o- > /tmp/hello.txt`} />
+        </div>
+      </div>
+
+      <!-- 03: Virus scanning -->
+      <div class="card-hover animate-on-scroll stagger-3 rounded-xl border border-border bg-surface p-4 sm:p-6">
+        <div class="mb-3 font-mono text-lg text-muted-dark">03</div>
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.malwareScan">Scan for Malware</h3>
+        <p class="text-sm text-muted" data-i18n="usecase.malwareScanDesc">
+          Scan uploaded files for viruses using ClamAV or upload to VirusTotal for comprehensive analysis.
+        </p>
+        <div class="mt-3 space-y-3">
+          <CodeBlock title="clamav scan" titleKey="code.clamavScan" code={`<span class="code-comment" data-i18n="code.comment.clamavScan"># scan with ClamAV</span>
+
+<span class="code-prompt">$</span> curl -X PUT --upload-file ./eicar.com \\
+    https://send.to/eicar.com/scan`} />
+          <CodeBlock title="virustotal scan" titleKey="code.virustotalScan" code={`<span class="code-comment" data-i18n="code.comment.virustotalScan"># upload to VirusTotal</span>
+
+<span class="code-prompt">$</span> curl -X PUT --upload-file ./suspect.exe \\
+    https://send.to/suspect.exe/virustotal`} />
+        </div>
+      </div>
+
+      <!-- 04: MySQL backup -->
+      <div class="card-hover animate-on-scroll rounded-xl border border-border bg-surface p-4 sm:p-6">
+        <div class="mb-3 font-mono text-lg text-muted-dark">04</div>
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.dbBackup">Database Backup</h3>
+        <p class="text-sm text-muted" data-i18n="usecase.dbBackupDesc">
+          Backup MySQL databases, compress with gzip, encrypt with GPG, and transfer — all in one pipeline.
+        </p>
+        <div class="mt-3">
+          <CodeBlock title="mysql backup" titleKey="code.mysqlBackup" code={`<span class="code-comment" data-i18n="code.comment.mysqlBackup"># backup, encrypt and transfer</span>
+
+<span class="code-prompt">$</span> mysqldump --all-databases | gzip | \\
+    gpg -ac -o- | \\
+    curl -X PUT --upload-file <span class="code-string">"-"</span> \\
+    https://send.to/db-backup.sql.gz`} />
+        </div>
+      </div>
+
+      <!-- 05: Email with link -->
+      <div class="card-hover animate-on-scroll rounded-xl border border-border bg-surface p-4 sm:p-6">
+        <div class="mb-3 font-mono text-lg text-muted-dark">05</div>
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.emailLink">Email with Transfer Link</h3>
+        <p class="text-sm text-muted" data-i18n="usecase.emailLinkDesc">
+          Upload a file and pipe the download link directly to an email using the shell transfer function.
+        </p>
+        <div class="mt-3">
+          <CodeBlock title="transfer & email" titleKey="code.transferEmail" code={`<span class="code-comment" data-i18n="code.comment.transferEmail"># transfer and send email with link</span>
+
+<span class="code-prompt">$</span> transfer /tmp/hello.txt | \\
+    mail -s <span class="code-string">"Hello World"</span> user@example.com`} />
+        </div>
+      </div>
+
+      <!-- 06: Keybase.io -->
+      <div class="card-hover animate-on-scroll rounded-xl border border-border bg-surface p-4 sm:p-6">
+        <div class="mb-3 font-mono text-lg text-muted-dark">06</div>
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.keybase">Use with Keybase</h3>
+        <p class="text-sm text-muted" data-i18n="usecase.keybaseDesc">
+          Encrypt files for specific recipients using Keybase keys. Import, encrypt, upload, and decrypt seamlessly.
+        </p>
+        <div class="mt-3 space-y-3">
+          <CodeBlock title="keybase encrypt" titleKey="code.keybaseEncrypt" code={`<span class="code-comment" data-i18n="code.comment.keybaseEncrypt"># encrypt for recipient and upload</span>
+
+<span class="code-prompt">$</span> cat backup.tar.gz | \\
+    keybase encrypt [them] | \\
+    curl --upload-file <span class="code-string">'-'</span> \\
+    https://send.to/backup.tar.gz`} />
+          <CodeBlock title="keybase decrypt" titleKey="code.keybaseDecrypt" code={`<span class="code-comment" data-i18n="code.comment.keybaseDecrypt"># download and decrypt</span>
+
+<span class="code-prompt">$</span> curl https://send.to/token/backup.tar.gz | \\
+    keybase decrypt`} />
+        </div>
+      </div>
+
+      <!-- 07: Alternative clients -->
+      <div class="card-hover animate-on-scroll rounded-xl border border-border bg-surface p-4 sm:p-6">
+        <div class="mb-3 font-mono text-lg text-muted-dark">07</div>
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.altClients">Alternative Clients</h3>
+        <p class="text-sm text-muted" data-i18n="usecase.altClientsDesc">
+          Works with wget, HTTPie, PowerShell, and third-party CLI tools. Use your preferred HTTP client.
+        </p>
+        <div class="mt-3 space-y-3">
+          <CodeBlock title="wget" titleKey="code.wget" code={`<span class="code-comment" data-i18n="code.comment.wget"># upload with wget</span>
+
+<span class="code-prompt">$</span> wget --method PUT \\
+    --body-file=/tmp/file.tar \\
+    https://send.to/file.tar -O - -nv`} />
+          <CodeBlock title="httpie" titleKey="code.httpie" code={`<span class="code-comment" data-i18n="code.comment.httpie"># upload with HTTPie</span>
+
+<span class="code-prompt">$</span> http https://send.to/ -vv &lt; /tmp/test.log`} />
+          <CodeBlock title="powershell" titleKey="code.powershell" code={`<span class="code-comment" data-i18n="code.comment.powershell"># upload with PowerShell</span>
+
+<span class="code-prompt">PS&gt;</span> invoke-webrequest -method put \`
+    -infile .\\file.txt \`
+    https://send.to/file.txt`} />
+        </div>
+      </div>
+
+      <!-- 08: OpenSSL encrypt -->
+      <div class="card-hover animate-on-scroll rounded-xl border border-border bg-surface p-4 sm:p-6">
+        <div class="mb-3 font-mono text-lg text-muted-dark">08</div>
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.openssl">Encrypt with OpenSSL</h3>
+        <p class="text-sm text-muted" data-i18n="usecase.opensslDesc">
+          Use OpenSSL AES-256-CBC encryption for files before transfer. No GPG required.
+        </p>
+        <div class="mt-3 space-y-3">
+          <CodeBlock title="openssl encrypt" titleKey="code.opensslEncrypt" code={`<span class="code-comment" data-i18n="code.comment.opensslEncrypt"># encrypt with openssl and upload</span>
+
+<span class="code-prompt">$</span> cat /tmp/hello.txt | \\
+    openssl aes-256-cbc -pbkdf2 -e | \\
+    curl -X PUT --upload-file <span class="code-string">"-"</span> \\
+    https://send.to/test.txt`} />
+          <CodeBlock title="openssl decrypt" titleKey="code.opensslDecrypt" code={`<span class="code-comment" data-i18n="code.comment.opensslDecrypt"># download and decrypt</span>
+
+<span class="code-prompt">$</span> curl https://send.to/token/test.txt | \\
+    openssl aes-256-cbc -pbkdf2 -d \\
+    > /tmp/hello.txt`} />
+        </div>
+      </div>
+
+      <!-- 09: Pipe syslog -->
+      <div class="card-hover animate-on-scroll rounded-xl border border-border bg-surface p-4 sm:p-6">
+        <div class="mb-3 font-mono text-lg text-muted-dark">09</div>
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.pipeLogs">Pipe Logs & Output</h3>
+        <p class="text-sm text-muted" data-i18n="usecase.pipeLogsDesc">
+          Pipe any command output directly to send.to. Share syslog entries, grep results, or any stream.
+        </p>
+        <div class="mt-3">
+          <CodeBlock title="pipe logs" titleKey="code.pipeLogs" code={`<span class="code-comment" data-i18n="code.comment.pipeLogs"># grep syslog and transfer</span>
+
+<span class="code-prompt">$</span> cat /var/log/syslog | grep pound | \\
+    curl --upload-file - \\
+    https://send.to/pound.log`} />
+        </div>
+      </div>
+
+      <!-- 10: Python client -->
+      <div class="card-hover animate-on-scroll rounded-xl border border-border bg-surface p-4 sm:p-6">
+        <div class="mb-3 font-mono text-lg text-muted-dark">10</div>
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.pythonClient">Python Client</h3>
+        <p class="text-sm text-muted" data-i18n="usecase.pythonClientDesc">
+          Use the unofficial Python CLI client transfersh-cli for a streamlined upload experience with clipboard support.
+        </p>
+        <div class="mt-3">
+          <CodeBlock title="transfersh-cli" titleKey="code.pythonClient" code={`<span class="code-comment" data-i18n="code.comment.pythonInstall"># install: pip install transfersh-cli</span>
+
+<span class="code-prompt">$</span> transfersh photos.zip
+
+<span class="code-string" data-i18n="code.comment.pythonOutput1"># Download from: https://send.to/token/photos.zip</span>
+<span class="code-string" data-i18n="code.comment.pythonOutput2"># Link copied to clipboard!</span>`} />
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

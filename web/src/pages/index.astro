@@ -1,0 +1,196 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import CodeBlock from "../components/CodeBlock.astro";
+import UploadZone from "../components/UploadZone";
+---
+
+<BaseLayout>
+  <div class="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-20">
+    <!-- Hero -->
+    <div class="mb-16 text-center">
+      <h1 class="text-gradient mb-4 font-mono text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl" data-i18n="hero.title">
+        send.to
+      </h1>
+      <p class="animate-on-scroll stagger-1 mx-auto max-w-xl text-lg text-muted" data-i18n="hero.subtitle">
+        Easy and fast file sharing from the command line. Upload files and get a shareable link instantly.
+      </p>
+    </div>
+
+    <!-- Upload Zone (React Island) -->
+    <div class="mb-16">
+      <UploadZone client:load />
+    </div>
+
+    <!-- CLI Section -->
+    <div class="mb-12">
+      <div class="mb-8 flex items-center gap-3">
+        <div class="h-px flex-1 bg-gradient-to-r from-transparent via-border-light to-transparent"></div>
+        <span class="font-mono text-xs uppercase tracking-widest text-muted-dark" data-i18n="cli.divider">
+          or use the command line
+        </span>
+        <div class="h-px flex-1 bg-gradient-to-r from-transparent via-border-light to-transparent"></div>
+      </div>
+
+      <div class="space-y-4">
+        <CodeBlock title="upload a file" titleKey="code.uploadFile" code={`<span class="code-prompt">$</span> curl --upload-file ./hello.txt \\
+    https://send.to/hello.txt`} />
+
+        <CodeBlock title="encrypt & upload" titleKey="code.encryptUpload" code={`<span class="code-prompt">$</span> curl -H <span class="code-string">"X-Encrypt-Password: secret"</span> \\
+    --upload-file ./hello.txt \\
+    https://send.to/hello.txt`} />
+
+        <CodeBlock title="set limits" titleKey="code.setLimits" code={`<span class="code-comment" data-i18n="code.comment.setLimits"># max 5 downloads, expires in 7 days</span>
+
+<span class="code-prompt">$</span> curl -H <span class="code-string">"Max-Downloads: 5"</span> \\
+    -H <span class="code-string">"Max-Days: 7"</span> \\
+    --upload-file ./hello.txt \\
+    https://send.to/hello.txt`} />
+      </div>
+    </div>
+
+    <!-- Features -->
+    <div class="mb-12 grid gap-4 sm:grid-cols-3">
+      <div class="card-hover animate-on-scroll stagger-1 rounded-xl border border-border bg-surface p-6">
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="feature.encryption">End-to-end encryption</h3>
+        <p class="text-sm text-muted" data-i18n="feature.encryptionDesc">
+          Encrypt files with a password before upload using OpenPGP AES-256.
+        </p>
+      </div>
+      <div class="card-hover animate-on-scroll stagger-2 rounded-xl border border-border bg-surface p-6">
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="feature.expiration">Auto-expiration</h3>
+        <p class="text-sm text-muted" data-i18n="feature.expirationDesc">
+          Set download limits and expiration dates. Files are automatically purged.
+        </p>
+      </div>
+      <div class="card-hover animate-on-scroll stagger-3 rounded-xl border border-border bg-surface p-6">
+        <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="feature.selfHosted">Self-hosted</h3>
+        <p class="text-sm text-muted" data-i18n="feature.selfHostedDesc">
+          Deploy your own instance with Docker. Single binary, zero external dependencies.
+        </p>
+      </div>
+    </div>
+
+    <!-- Use Cases CTA -->
+    <div class="mb-12">
+      <div class="mb-8 flex items-center gap-3">
+        <div class="h-px flex-1 bg-gradient-to-r from-transparent via-border-light to-transparent"></div>
+        <span class="font-mono text-xs uppercase tracking-widest text-muted-dark" data-i18n="usecase.divider">
+          use cases
+        </span>
+        <div class="h-px flex-1 bg-gradient-to-r from-transparent via-border-light to-transparent"></div>
+      </div>
+
+      <div class="grid gap-4 sm:grid-cols-3">
+        <div class="card-hover animate-on-scroll stagger-1 rounded-xl border border-border bg-surface p-6">
+          <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.gpgEncrypt">Encrypt with GPG</h3>
+          <p class="text-sm text-muted" data-i18n="usecase.gpgEncryptShort">
+            Pipe through gpg for end-to-end encryption with your own keys.
+          </p>
+        </div>
+        <div class="card-hover animate-on-scroll stagger-2 rounded-xl border border-border bg-surface p-6">
+          <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.dbBackup">Database Backup</h3>
+          <p class="text-sm text-muted" data-i18n="usecase.dbBackupShort">
+            Backup, compress, encrypt, and transfer databases in one pipeline.
+          </p>
+        </div>
+        <div class="card-hover animate-on-scroll stagger-3 rounded-xl border border-border bg-surface p-6">
+          <h3 class="mb-2 font-mono text-sm font-medium text-primary" data-i18n="usecase.malwareScan">Scan for Malware</h3>
+          <p class="text-sm text-muted" data-i18n="usecase.malwareScanShort">
+            Scan files with ClamAV or VirusTotal before sharing.
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-6 text-center">
+        <a href="/use-cases" class="btn-press inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-5 py-2.5 font-mono text-sm text-primary transition-all duration-200 hover:scale-[1.02] hover:bg-surface-light hover:shadow-lg" data-i18n="usecase.viewAll">
+          View all use cases &rarr;
+        </a>
+      </div>
+    </div>
+
+    <!-- Q&A Section -->
+    <div class="mb-12">
+      <div class="mb-8 flex items-center gap-3">
+        <div class="h-px flex-1 bg-gradient-to-r from-transparent via-border-light to-transparent"></div>
+        <span class="font-mono text-xs uppercase tracking-widest text-muted-dark" data-i18n="qa.divider">
+          questions & answers
+        </span>
+        <div class="h-px flex-1 bg-gradient-to-r from-transparent via-border-light to-transparent"></div>
+      </div>
+
+      <div class="space-y-4">
+        <details class="group rounded-xl border border-border bg-surface transition-all duration-200 hover:border-border-light">
+          <summary class="flex cursor-pointer items-center justify-between px-6 py-4 font-mono text-sm font-medium text-primary">
+            <span data-i18n="qa.q1">How do I upload a file?</span>
+            <span class="ml-4 text-muted transition-transform duration-200 group-open:rotate-45">+</span>
+          </summary>
+          <div class="border-t border-border px-6 py-4">
+            <p class="text-sm leading-relaxed text-muted" data-i18n="qa.a1">
+              Use curl to upload: <code class="rounded bg-surface-light px-1.5 py-0.5 font-mono text-xs text-accent">curl --upload-file ./file.txt https://send.to/file.txt</code>. You can also drag and drop files using the upload zone above.
+            </p>
+          </div>
+        </details>
+
+        <details class="group rounded-xl border border-border bg-surface transition-all duration-200 hover:border-border-light">
+          <summary class="flex cursor-pointer items-center justify-between px-6 py-4 font-mono text-sm font-medium text-primary">
+            <span data-i18n="qa.q2">How long are files stored?</span>
+            <span class="ml-4 text-muted transition-transform duration-200 group-open:rotate-45">+</span>
+          </summary>
+          <div class="border-t border-border px-6 py-4">
+            <p class="text-sm leading-relaxed text-muted" data-i18n="qa.a2">
+              By default, files expire based on the server configuration. You can set a custom expiration with the <code class="rounded bg-surface-light px-1.5 py-0.5 font-mono text-xs text-accent">Max-Days</code> header, and limit downloads with <code class="rounded bg-surface-light px-1.5 py-0.5 font-mono text-xs text-accent">Max-Downloads</code>.
+            </p>
+          </div>
+        </details>
+
+        <details class="group rounded-xl border border-border bg-surface transition-all duration-200 hover:border-border-light">
+          <summary class="flex cursor-pointer items-center justify-between px-6 py-4 font-mono text-sm font-medium text-primary">
+            <span data-i18n="qa.q3">Is my data encrypted?</span>
+            <span class="ml-4 text-muted transition-transform duration-200 group-open:rotate-45">+</span>
+          </summary>
+          <div class="border-t border-border px-6 py-4">
+            <p class="text-sm leading-relaxed text-muted" data-i18n="qa.a3">
+              Files are encrypted in transit via HTTPS. For server-side encryption, add the <code class="rounded bg-surface-light px-1.5 py-0.5 font-mono text-xs text-accent">X-Encrypt-Password</code> header to encrypt with OpenPGP AES-256. You can also encrypt client-side with GPG or OpenSSL before uploading.
+            </p>
+          </div>
+        </details>
+
+        <details class="group rounded-xl border border-border bg-surface transition-all duration-200 hover:border-border-light">
+          <summary class="flex cursor-pointer items-center justify-between px-6 py-4 font-mono text-sm font-medium text-primary">
+            <span data-i18n="qa.q4">Can I delete a file after uploading?</span>
+            <span class="ml-4 text-muted transition-transform duration-200 group-open:rotate-45">+</span>
+          </summary>
+          <div class="border-t border-border px-6 py-4">
+            <p class="text-sm leading-relaxed text-muted" data-i18n="qa.a4">
+              Yes. Every upload returns a deletion URL in the <code class="rounded bg-surface-light px-1.5 py-0.5 font-mono text-xs text-accent">X-Url-Delete</code> response header. Use it with a DELETE request to remove the file immediately.
+            </p>
+          </div>
+        </details>
+
+        <details class="group rounded-xl border border-border bg-surface transition-all duration-200 hover:border-border-light">
+          <summary class="flex cursor-pointer items-center justify-between px-6 py-4 font-mono text-sm font-medium text-primary">
+            <span data-i18n="qa.q5">Can I self-host send.to?</span>
+            <span class="ml-4 text-muted transition-transform duration-200 group-open:rotate-45">+</span>
+          </summary>
+          <div class="border-t border-border px-6 py-4">
+            <p class="text-sm leading-relaxed text-muted" data-i18n="qa.a5">
+              Yes. send.to compiles to a single static binary with zero dependencies. Run it with Docker or directly on your server. It supports local storage, S3, Google Drive, and Storj as backends.
+            </p>
+          </div>
+        </details>
+
+        <details class="group rounded-xl border border-border bg-surface transition-all duration-200 hover:border-border-light">
+          <summary class="flex cursor-pointer items-center justify-between px-6 py-4 font-mono text-sm font-medium text-primary">
+            <span data-i18n="qa.q6">What is the maximum file size?</span>
+            <span class="ml-4 text-muted transition-transform duration-200 group-open:rotate-45">+</span>
+          </summary>
+          <div class="border-t border-border px-6 py-4">
+            <p class="text-sm leading-relaxed text-muted" data-i18n="qa.a6">
+              The maximum file size is configured by the server administrator using the <code class="rounded bg-surface-light px-1.5 py-0.5 font-mono text-xs text-accent">--max-upload-size</code> flag. There is no hard-coded limit in the application itself.
+            </p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

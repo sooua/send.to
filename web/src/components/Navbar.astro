@@ -1,0 +1,152 @@
+---
+import ThemeToggle from "./ThemeToggle";
+import LanguageSwitcher from "./LanguageSwitcher";
+
+const navLinks = [
+  { href: "/", label: "Home", i18nKey: "nav.home" },
+  { href: "/use-cases", label: "Use Cases", i18nKey: "nav.useCases" },
+  { href: "/api-docs", label: "API Docs", i18nKey: "nav.apiDocs" },
+  { href: "/about", label: "About", i18nKey: "nav.about" },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<header
+  class="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md"
+>
+  <nav class="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
+    <a href="/" class="flex items-center gap-2 font-mono text-sm font-semibold tracking-tight text-primary transition-all duration-200 hover:scale-[1.02] hover:text-accent">
+      <span class="text-muted-dark">$</span> send.to
+    </a>
+
+    <!-- Desktop nav -->
+    <div class="hidden items-center gap-1 md:flex">
+      {navLinks.map((link) => (
+        <a
+          href={link.href}
+          data-i18n={link.i18nKey}
+          class:list={[
+            "relative rounded-md px-3 py-1.5 text-sm transition-all duration-200",
+            currentPath === link.href
+              ? "bg-surface-light text-primary after:absolute after:bottom-0 after:left-1/2 after:h-0.5 after:w-4 after:-translate-x-1/2 after:rounded-full after:bg-primary after:content-['']"
+              : "text-muted hover:bg-surface/50 hover:text-primary",
+          ]}
+        >
+          {link.label}
+        </a>
+      ))}
+
+      <div class="ml-2 flex items-center gap-0.5">
+        <LanguageSwitcher client:load />
+        <ThemeToggle client:load />
+        <a
+          href="https://github.com/sooua/send.to"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="rounded-md p-1.5 text-muted transition-colors hover:text-primary"
+          aria-label="GitHub repository"
+        >
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <!-- Mobile controls -->
+    <div class="flex items-center gap-1 md:hidden">
+      <LanguageSwitcher client:load />
+      <ThemeToggle client:load />
+      <button
+        id="mobile-menu-btn"
+        class="rounded-md p-1.5 text-muted transition-colors hover:text-primary"
+        aria-label="Toggle menu"
+      >
+        <svg id="menu-icon" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+        <svg id="close-icon" class="hidden h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile menu -->
+  <div id="mobile-menu" class="mobile-menu border-t border-border bg-background/95 backdrop-blur-md md:hidden">
+    <div class="space-y-1 px-4 py-3">
+      {navLinks.map((link) => (
+        <a
+          href={link.href}
+          data-i18n={link.i18nKey}
+          class:list={[
+            "block rounded-md px-3 py-2 text-sm transition-colors",
+            currentPath === link.href
+              ? "bg-surface-light text-primary"
+              : "text-muted hover:bg-surface hover:text-primary",
+          ]}
+        >
+          {link.label}
+        </a>
+      ))}
+      <a
+        href="https://github.com/sooua/send.to"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted transition-colors hover:bg-surface hover:text-primary"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+        </svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</header>
+
+<script>
+  function initMobileMenu() {
+    const btn = document.getElementById("mobile-menu-btn");
+    const menu = document.getElementById("mobile-menu");
+    const menuIcon = document.getElementById("menu-icon");
+    const closeIcon = document.getElementById("close-icon");
+    if (!btn || !menu || !menuIcon || !closeIcon) return;
+    if (btn.dataset.menuInit) return;
+    btn.dataset.menuInit = "true";
+
+    btn.addEventListener("click", () => {
+      const isOpen = menu.classList.contains("is-open");
+      if (isOpen) {
+        menu.classList.remove("is-open");
+      } else {
+        menu.classList.add("is-open");
+      }
+      menuIcon.classList.toggle("hidden");
+      closeIcon.classList.toggle("hidden");
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initMobileMenu);
+  } else {
+    initMobileMenu();
+  }
+  document.addEventListener("astro:page-load", initMobileMenu);
+</script>
+
+<style>
+  .mobile-menu {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+  }
+  .mobile-menu.is-open {
+    max-height: 300px;
+    opacity: 1;
+  }
+</style>

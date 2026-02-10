@@ -1,0 +1,36 @@
+---
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="border-t border-border py-8" style="border-image: linear-gradient(to right, transparent, var(--color-border-light), transparent) 1;">
+  <div class="mx-auto max-w-7xl px-6">
+    <div class="flex flex-col items-center justify-between gap-4 sm:flex-row">
+      <div class="flex items-center gap-4 text-sm text-muted">
+        <span class="font-mono text-muted-dark">send.to</span>
+        <span class="text-border-light">/</span>
+        <span>&copy; {currentYear}</span>
+      </div>
+      <div class="flex items-center gap-4 text-sm">
+        <a href="/api-docs" class="text-muted transition-all duration-200 hover:translate-x-0.5 hover:text-primary" data-i18n="nav.apiDocs">API Docs</a>
+        <a href="/about" class="text-muted transition-all duration-200 hover:translate-x-0.5 hover:text-primary" data-i18n="nav.about">About</a>
+        <a
+          href="https://github.com/sooua/send.to"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-muted transition-all duration-200 hover:translate-x-0.5 hover:text-primary"
+        >
+          GitHub
+        </a>
+        <a
+          href="https://github.com/sooua/send.to/blob/main/LICENSE"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-muted transition-all duration-200 hover:translate-x-0.5 hover:text-primary"
+          data-i18n="footer.license"
+        >
+          MIT License
+        </a>
+      </div>
+    </div>
+  </div>
+</footer>

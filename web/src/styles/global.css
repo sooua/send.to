@@ -1,0 +1,253 @@
+@import "tailwindcss";
+
+/* 告诉 Tailwind v4 扫描所有模板文件 */
+@source "../**/*.astro";
+@source "../**/*.tsx";
+@source "../**/*.ts";
+
+/* === Tailwind 主题定制 === */
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-background: #09090B;
+  --color-surface: #111113;
+  --color-surface-light: #18181B;
+  --color-border: #27272A;
+  --color-border-light: #3F3F46;
+  --color-primary: #FFFFFF;
+  --color-muted: #A1A1AA;
+  --color-muted-dark: #71717A;
+  --color-accent: #E4E4E7;
+  --color-danger: #EF4444;
+  --color-success: #22C55E;
+  --color-codeblock: #0D0D0F;
+
+  /* Code syntax colors */
+  --color-code-text: #E4E4E7;
+  --color-code-comment: #71717A;
+  --color-code-string: #A1A1AA;
+  --color-code-prompt: #52525B;
+
+  /* Shadow & glow tokens */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 8px 25px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 15px rgba(255, 255, 255, 0.03), 0 0 30px rgba(255, 255, 255, 0.02);
+  --shadow-glow-strong: 0 0 20px rgba(255, 255, 255, 0.06), 0 0 40px rgba(255, 255, 255, 0.03);
+  --color-glow: rgba(255, 255, 255, 0.04);
+  --color-glow-strong: rgba(255, 255, 255, 0.08);
+}
+
+/* === 暗色主题（默认） === */
+html {
+  background-color: var(--color-background);
+  color: #FAFAFA;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === 亮色主题覆盖 === */
+html[data-theme="light"] {
+  --color-background: #FFFFFF;
+  --color-surface: #F4F4F5;
+  --color-surface-light: #E4E4E7;
+  --color-border: #D4D4D8;
+  --color-border-light: #A1A1AA;
+  --color-primary: #09090B;
+  --color-muted: #71717A;
+  --color-muted-dark: #A1A1AA;
+  --color-accent: #3F3F46;
+  --color-codeblock: #F8F8FA;
+  --color-code-text: #1E1E2E;
+  --color-code-comment: #6B7280;
+  --color-code-string: #4B5563;
+  --color-code-prompt: #9CA3AF;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 8px 25px rgba(0, 0, 0, 0.12), 0 3px 10px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 0 15px rgba(0, 0, 0, 0.04), 0 0 30px rgba(0, 0, 0, 0.02);
+  --shadow-glow-strong: 0 0 20px rgba(0, 0, 0, 0.06), 0 0 40px rgba(0, 0, 0, 0.03);
+  --color-glow: rgba(0, 0, 0, 0.03);
+  --color-glow-strong: rgba(0, 0, 0, 0.06);
+  color: #09090B;
+}
+
+/* Code block syntax colors */
+.code-block pre {
+  color: var(--color-code-text);
+}
+.code-block .code-comment {
+  color: var(--color-code-comment);
+}
+.code-block .code-string {
+  color: var(--color-code-string);
+}
+.code-block .code-prompt {
+  color: var(--color-code-prompt);
+}
+
+body {
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* === 滚动条 === */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-light);
+}
+
+/* === 选中文字 === */
+::selection {
+  background-color: rgba(128, 128, 128, 0.25);
+}
+
+/* === Keyframe animations === */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes terminal-glow-pulse {
+  0%, 100% {
+    box-shadow: var(--shadow-glow);
+  }
+  50% {
+    box-shadow: var(--shadow-glow-strong);
+  }
+}
+
+@keyframes progress-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* === Scroll-triggered animation === */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+
+.animate-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger delays */
+.stagger-1 { transition-delay: 50ms; }
+.stagger-2 { transition-delay: 100ms; }
+.stagger-3 { transition-delay: 150ms; }
+.stagger-4 { transition-delay: 200ms; }
+.stagger-5 { transition-delay: 250ms; }
+.stagger-6 { transition-delay: 300ms; }
+
+/* === Card hover elevation === */
+.card-hover {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  box-shadow: var(--shadow-card);
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* === Terminal glow === */
+.terminal-glow {
+  animation: terminal-glow-pulse 4s ease-in-out infinite;
+}
+
+/* === Gradient text === */
+.text-gradient {
+  background: linear-gradient(to right, var(--color-primary), var(--color-muted));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* === Button press feedback === */
+.btn-press {
+  transition: transform 0.1s ease-out;
+}
+
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* === Focus-visible accessibility rings === */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* === 减少动画 === */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .animate-on-scroll {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .terminal-glow {
+    animation: none !important;
+    box-shadow: none !important;
+  }
+
+  .card-hover:hover {
+    transform: none !important;
+  }
+}
+
+/* === 防止亮色主题闪烁 === */
+html:not([data-theme]) {
+  color-scheme: dark;
+}
+html[data-theme="light"] {
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+}

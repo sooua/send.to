@@ -1,0 +1,433 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import CodeBlock from "../components/CodeBlock.astro";
+---
+
+<BaseLayout title="API Documentation - send.to">
+  <div class="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16">
+    <div class="mb-12">
+      <h1 class="mb-3 font-mono text-3xl font-bold text-primary" data-i18n="api.title">API Documentation</h1>
+      <p class="text-muted" data-i18n="api.subtitle">
+        send.to provides a simple HTTP API for uploading, downloading, and managing files. All endpoints accept standard HTTP methods and can be used with curl or any HTTP client.
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-8 lg:flex-row">
+      <!-- Sidebar Navigation -->
+      <nav class="shrink-0 lg:sticky lg:top-20 lg:h-fit lg:w-48">
+        <ul class="space-y-1 text-sm">
+          <li><a href="#upload" class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary" data-i18n="api.upload">Upload</a></li>
+          <li><a href="#download" class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary" data-i18n="api.download">Download</a></li>
+          <li><a href="#delete" class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary" data-i18n="api.delete">Delete</a></li>
+          <li><a href="#archive" class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary" data-i18n="api.archive">Archive Download</a></li>
+          <li><a href="#scan" class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary" data-i18n="api.scan">Virus Scan</a></li>
+          <li><a href="#headers" class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary" data-i18n="api.headers">Request Headers</a></li>
+          <li><a href="#response-headers" class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary" data-i18n="api.responseHeaders">Response Headers</a></li>
+          <li><a href="#errors" class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary" data-i18n="api.errors">Error Codes</a></li>
+        </ul>
+      </nav>
+
+      <!-- Content -->
+      <div class="min-w-0 flex-1 space-y-12">
+
+        <!-- Upload -->
+        <section id="upload" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.upload">Upload</h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.uploadDesc">Upload a file using PUT or POST. The response contains the download URL. The X-Url-Delete response header contains the deletion URL.</p>
+
+          <div class="mb-4 overflow-x-auto rounded-lg border border-border">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-surface">
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Method</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Path</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                </tr>
+              </thead>
+              <tbody class="text-muted">
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">PUT</td>
+                  <td class="px-4 py-2 font-mono text-xs">/{'{filename}'}</td>
+                  <td class="px-4 py-2">Upload a file</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">PUT</td>
+                  <td class="px-4 py-2 font-mono text-xs">/put/{'{filename}'}</td>
+                  <td class="px-4 py-2">Upload (alias)</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">PUT</td>
+                  <td class="px-4 py-2 font-mono text-xs">/upload/{'{filename}'}</td>
+                  <td class="px-4 py-2">Upload (alias)</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2 font-mono text-xs text-accent">POST</td>
+                  <td class="px-4 py-2 font-mono text-xs">/</td>
+                  <td class="px-4 py-2">Form upload (multipart/form-data)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="space-y-4">
+            <CodeBlock title="upload a file" titleKey="code.uploadFile" code={`<span class="code-prompt">$</span> curl --upload-file ./hello.txt https://send.to/hello.txt
+
+<span class="code-string">https://send.to/abc123/hello.txt</span>`} />
+
+            <CodeBlock title="upload with limits" titleKey="code.setLimits" code={`<span class="code-prompt">$</span> curl -H <span class="code-string">"Max-Downloads: 5"</span> -H <span class="code-string">"Max-Days: 7"</span> \\
+    --upload-file ./hello.txt https://send.to/hello.txt`} />
+
+            <CodeBlock title="multipart upload" titleKey="code.multiUpload" code={`<span class="code-prompt">$</span> curl -i -F <span class="code-string">filedata=@/tmp/hello.txt</span> \\
+    -F <span class="code-string">filedata=@/tmp/hello2.txt</span> https://send.to/`} />
+          </div>
+        </section>
+
+        <!-- Download -->
+        <section id="download" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.download">Download</h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.downloadDesc">Download or preview a file. Supports range requests for resumable downloads. The default GET endpoint auto-detects preview vs download based on Accept and Referer headers.</p>
+
+          <div class="mb-4 overflow-x-auto rounded-lg border border-border">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-surface">
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Method</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Path</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                </tr>
+              </thead>
+              <tbody class="text-muted">
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">/{'{token}'}/{'{filename}'}</td>
+                  <td class="px-4 py-2">Download or preview (auto-detect)</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">/download/{'{token}'}/{'{filename}'}</td>
+                  <td class="px-4 py-2">Force download (attachment)</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">/get/{'{token}'}/{'{filename}'}</td>
+                  <td class="px-4 py-2">Force download (alias)</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">/inline/{'{token}'}/{'{filename}'}</td>
+                  <td class="px-4 py-2">Force inline display (browser preview)</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2 font-mono text-xs text-accent">HEAD</td>
+                  <td class="px-4 py-2 font-mono text-xs">/{'{token}'}/{'{filename}'}</td>
+                  <td class="px-4 py-2">Get file metadata without downloading</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <CodeBlock title="download a file" titleKey="code.downloadFile" code={`<span class="code-prompt">$</span> curl https://send.to/abc123/hello.txt -o hello.txt`} />
+        </section>
+
+        <!-- Delete -->
+        <section id="delete" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.delete">Delete</h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.deleteDesc">Delete a file using the deletion token returned in the X-Url-Delete response header during upload.</p>
+
+          <div class="mb-4 overflow-x-auto rounded-lg border border-border">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-surface">
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Method</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Path</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                </tr>
+              </thead>
+              <tbody class="text-muted">
+                <tr>
+                  <td class="px-4 py-2 font-mono text-xs text-danger">DELETE</td>
+                  <td class="px-4 py-2 font-mono text-xs">/{'{token}'}/{'{filename}'}/{'{deletionToken}'}</td>
+                  <td class="px-4 py-2">Delete a file</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <CodeBlock title="delete a file" titleKey="code.deleteFile" code={`<span class="code-prompt">$</span> curl -X DELETE \\
+    https://send.to/abc123/hello.txt/del-token-xyz`} />
+        </section>
+
+        <!-- Archive -->
+        <section id="archive" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.archive">Archive Download</h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.archiveDesc">Download multiple files as a single archive (ZIP, TAR, or TAR.GZ). Separate file paths with commas.</p>
+
+          <div class="mb-4 overflow-x-auto rounded-lg border border-border">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-surface">
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Method</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Path</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Format</th>
+                </tr>
+              </thead>
+              <tbody class="text-muted">
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">(files).zip</td>
+                  <td class="px-4 py-2">ZIP archive</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">(files).tar</td>
+                  <td class="px-4 py-2">TAR archive</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">(files).tar.gz</td>
+                  <td class="px-4 py-2">Compressed TAR</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <CodeBlock title="combine as archive" titleKey="code.combineArchive" code={`<span class="code-prompt">$</span> curl https://send.to/<span class="code-string">(token1/hello.txt,token2/hello2.txt).zip</span> \\
+    -o files.zip`} />
+        </section>
+
+        <!-- Virus Scan -->
+        <section id="scan" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.scan">Virus Scan</h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.scanDesc">Scan uploaded files with ClamAV or VirusTotal (requires server configuration).</p>
+
+          <div class="mb-4 overflow-x-auto rounded-lg border border-border">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-surface">
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Method</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Path</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                </tr>
+              </thead>
+              <tbody class="text-muted">
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">PUT</td>
+                  <td class="px-4 py-2 font-mono text-xs">/{'{filename}'}/virustotal</td>
+                  <td class="px-4 py-2">Submit to VirusTotal (requires --virustotal-key)</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2 font-mono text-xs text-accent">PUT</td>
+                  <td class="px-4 py-2 font-mono text-xs">/{'{filename}'}/scan</td>
+                  <td class="px-4 py-2">Scan with ClamAV (requires --clamav-host)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="mb-4 text-xs text-muted-dark" data-i18n="api.scanNote">
+            When --perform-clamav-prescan is enabled, all uploads are automatically scanned before being accepted. Infected files are rejected with HTTP 412.
+          </p>
+        </section>
+
+        <!-- Request Headers -->
+        <section id="headers" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.headers">Request Headers</h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.headersDesc">Optional headers to control upload and download behavior.</p>
+
+          <div class="space-y-6">
+            <div>
+              <h3 class="mb-3 font-mono text-sm font-medium text-accent" data-i18n="api.uploadHeaders">Upload Headers</h3>
+              <div class="overflow-x-auto rounded-lg border border-border">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-border bg-surface">
+                      <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Header</th>
+                      <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                      <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Example</th>
+                    </tr>
+                  </thead>
+                  <tbody class="text-muted">
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">Max-Downloads</td>
+                      <td class="px-4 py-2">Maximum number of downloads before auto-deletion</td>
+                      <td class="px-4 py-2 font-mono text-xs text-muted-dark">5</td>
+                    </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">Max-Days</td>
+                      <td class="px-4 py-2">Days until expiration</td>
+                      <td class="px-4 py-2 font-mono text-xs text-muted-dark">7</td>
+                    </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">X-Encrypt-Password</td>
+                      <td class="px-4 py-2">Encrypt file with OpenPGP AES-256</td>
+                      <td class="px-4 py-2 font-mono text-xs text-muted-dark">mysecret</td>
+                    </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">Content-Type</td>
+                      <td class="px-4 py-2">MIME type of the uploaded file</td>
+                      <td class="px-4 py-2 font-mono text-xs text-muted-dark">image/png</td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-2 font-mono text-xs">Authorization</td>
+                      <td class="px-4 py-2">HTTP Basic Auth (if server requires it)</td>
+                      <td class="px-4 py-2 font-mono text-xs text-muted-dark">Basic dXNlcjpwYXNz</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="mb-3 font-mono text-sm font-medium text-accent" data-i18n="api.downloadHeaders">Download Headers</h3>
+              <div class="overflow-x-auto rounded-lg border border-border">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-border bg-surface">
+                      <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Header</th>
+                      <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody class="text-muted">
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">X-Decrypt-Password</td>
+                      <td class="px-4 py-2">Decrypt an encrypted file</td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-2 font-mono text-xs">Range</td>
+                      <td class="px-4 py-2">Resumable download (e.g. bytes=0-1023)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Response Headers -->
+        <section id="response-headers" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.responseHeaders">Response Headers</h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.responseHeadersDesc">Headers returned by the server in upload and download responses.</p>
+
+          <div class="space-y-6">
+            <div>
+              <h3 class="mb-3 font-mono text-sm font-medium text-accent" data-i18n="api.uploadResponseHeaders">Upload Response</h3>
+              <div class="overflow-x-auto rounded-lg border border-border">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-border bg-surface">
+                      <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Header</th>
+                      <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody class="text-muted">
+                    <tr>
+                      <td class="px-4 py-2 font-mono text-xs">X-Url-Delete</td>
+                      <td class="px-4 py-2">Full URL to delete the uploaded file (includes deletion token)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="mb-3 font-mono text-sm font-medium text-accent" data-i18n="api.downloadResponseHeaders">Download Response</h3>
+              <div class="overflow-x-auto rounded-lg border border-border">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-border bg-surface">
+                      <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Header</th>
+                      <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody class="text-muted">
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">X-Remaining-Downloads</td>
+                      <td class="px-4 py-2">Number of downloads remaining before auto-deletion</td>
+                    </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">X-Remaining-Days</td>
+                      <td class="px-4 py-2">Days remaining until file expires</td>
+                    </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">Content-Disposition</td>
+                      <td class="px-4 py-2">attachment (download) or inline (preview) with filename</td>
+                    </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">Accept-Ranges</td>
+                      <td class="px-4 py-2">Indicates range request support (bytes)</td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-2 font-mono text-xs">Content-Range</td>
+                      <td class="px-4 py-2">Byte range returned for partial content (206 responses)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Error Codes -->
+        <section id="errors" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.errors">Error Codes</h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.errorsDesc">Common HTTP status codes returned by the API.</p>
+
+          <div class="overflow-x-auto rounded-lg border border-border">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-surface">
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Code</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Status</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                </tr>
+              </thead>
+              <tbody class="text-muted">
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">200</td>
+                  <td class="px-4 py-2 font-mono text-xs">OK</td>
+                  <td class="px-4 py-2">Successful upload, download, or deletion</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">206</td>
+                  <td class="px-4 py-2 font-mono text-xs">Partial Content</td>
+                  <td class="px-4 py-2">Range request fulfilled successfully</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-danger">401</td>
+                  <td class="px-4 py-2 font-mono text-xs">Unauthorized</td>
+                  <td class="px-4 py-2">HTTP Basic Auth required but not provided</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-danger">403</td>
+                  <td class="px-4 py-2 font-mono text-xs">Forbidden</td>
+                  <td class="px-4 py-2">IP address is blacklisted</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-danger">404</td>
+                  <td class="px-4 py-2 font-mono text-xs">Not Found</td>
+                  <td class="px-4 py-2">File does not exist or has expired</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-danger">412</td>
+                  <td class="px-4 py-2 font-mono text-xs">Precondition Failed</td>
+                  <td class="px-4 py-2">Virus detected during ClamAV pre-scan</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-danger">413</td>
+                  <td class="px-4 py-2 font-mono text-xs">Request Entity Too Large</td>
+                  <td class="px-4 py-2">File exceeds --max-upload-size limit</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2 font-mono text-xs text-danger">500</td>
+                  <td class="px-4 py-2 font-mono text-xs">Internal Server Error</td>
+                  <td class="px-4 py-2">Storage or processing error</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>
