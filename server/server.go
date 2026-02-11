@@ -592,30 +592,33 @@ func (s *Server) Run() {
 
 	s.logger.Info("send.to server started", "temp_folder", s.tempPath, "storage_provider", s.storage.Type())
 
-	var cors func(http.Handler) http.Handler
+	var corsMiddleware func(http.Handler) http.Handler
 	if len(s.CorsDomains) > 0 {
-		cors = gorillaHandlers.CORS(
-			gorillaHandlers.AllowedHeaders([]string{"*"}),
+		corsMiddleware = gorillaHandlers.CORS(
+			gorillaHandlers.AllowedHeaders([]string{"Content-Type", "Max-Downloads", "Max-Days", "X-Encrypt-Password", "Authorization"}),
 			gorillaHandlers.AllowedOrigins(strings.Split(s.CorsDomains, ",")),
 			gorillaHandlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"}),
+			gorillaHandlers.ExposedHeaders([]string{"X-Url-Delete"}),
 		)
 	} else {
-		cors = func(h http.Handler) http.Handler {
+		corsMiddleware = func(h http.Handler) http.Handler {
 			return h
 		}
 	}
 
-	h := panicHandler(
-		ipFilterHandler(
-			logHandler(
-				securityHeadersHandler(
-					LoveHandler(
-						s.RedirectHandler(cors(r)))),
-				s.logger,
+	h := corsMiddleware(
+		panicHandler(
+			ipFilterHandler(
+				logHandler(
+					securityHeadersHandler(
+						LoveHandler(
+							s.RedirectHandler(r))),
+					s.logger,
+				),
+				s.ipFilterOptions,
 			),
-			s.ipFilterOptions,
+			s.logger,
 		),
-		s.logger,
 	)
 
 	var servers []*http.Server
