@@ -41,7 +41,7 @@ import (
 	"syscall"
 	"time"
 
-	gorillaHandlers "github.com/gorilla/handlers"
+
 	"github.com/gorilla/mux"
 	"github.com/tg123/go-htpasswd"
 	"golang.org/x/crypto/acme/autocert"
@@ -594,12 +594,27 @@ func (s *Server) Run() {
 
 	var corsMiddleware func(http.Handler) http.Handler
 	if len(s.CorsDomains) > 0 {
-		corsMiddleware = gorillaHandlers.CORS(
-			gorillaHandlers.AllowedHeaders([]string{"Content-Type", "Max-Downloads", "Max-Days", "X-Encrypt-Password", "Authorization"}),
-			gorillaHandlers.AllowedOrigins(strings.Split(s.CorsDomains, ",")),
-			gorillaHandlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"}),
-			gorillaHandlers.ExposedHeaders([]string{"X-Url-Delete"}),
-		)
+		allowedOrigins := make(map[string]bool)
+		for _, origin := range strings.Split(s.CorsDomains, ",") {
+			allowedOrigins[strings.TrimSpace(origin)] = true
+		}
+		corsMiddleware = func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				origin := r.Header.Get("Origin")
+				if allowedOrigins[origin] {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, DELETE, OPTIONS")
+					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Max-Downloads, Max-Days, X-Encrypt-Password, Authorization")
+					w.Header().Set("Access-Control-Expose-Headers", "X-Url-Delete")
+					w.Header().Set("Access-Control-Max-Age", "86400")
+				}
+				if r.Method == http.MethodOptions {
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+				next.ServeHTTP(w, r)
+			})
+		}
 	} else {
 		corsMiddleware = func(h http.Handler) http.Handler {
 			return h
