@@ -41,7 +41,6 @@ import (
 	"syscall"
 	"time"
 
-
 	"github.com/gorilla/mux"
 	"github.com/tg123/go-htpasswd"
 	"golang.org/x/crypto/acme/autocert"
