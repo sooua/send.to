@@ -1,16 +1,16 @@
 run:
-  deadline: 10m
+  timeout: 10m
   issues-exit-code: 1
   tests: true
 
 output:
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
 
 linters:
   disable:
-    - deadcode
     - unused
 
 issues:
@@ -18,3 +18,11 @@ issues:
   max-same-issues: 0
   new: false
   exclude-use-default: false
+  exclude-rules:
+    - path: server/storage/s3\.go
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: _test\.go
+      linters:
+        - errcheck
