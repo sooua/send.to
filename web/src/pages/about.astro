@@ -102,17 +102,17 @@ import CodeBlock from "../components/CodeBlock.astro";
         <div class="space-y-4">
           <CodeBlock title="docker run" titleKey="code.dockerRun" code={`<span class="code-prompt">$</span> docker run -p 8080:8080 \\
     -v /tmp/send.to:/data \\
-    sooua/sendto \\
+    iuumua/sendto \\
     --provider local --basedir /data`} />
 
           <CodeBlock title="docker run with S3" titleKey="code.dockerRunS3" code={`<span class="code-prompt">$</span> docker run -p 8080:8080 \\
     -e AWS_ACCESS_KEY=your-key \\
     -e AWS_SECRET_KEY=your-secret \\
-    sooua/sendto \\
+    iuumua/sendto \\
     --provider s3 --bucket my-bucket`} />
 
           <CodeBlock title="with encryption & limits" titleKey="code.dockerAdvanced" code={`<span class="code-prompt">$</span> docker run -p 8080:8080 \\
-    sooua/sendto \\
+    iuumua/sendto \\
     --provider local --basedir /data \\
     --max-upload-size 5242880 \\
     --purge-days 14 --purge-interval 1 \\

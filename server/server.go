@@ -591,33 +591,31 @@ func (s *Server) Run() {
 
 	s.logger.Info("send.to server started", "temp_folder", s.tempPath, "storage_provider", s.storage.Type())
 
-	var corsMiddleware func(http.Handler) http.Handler
+	var allowedOrigins map[string]bool
 	if len(s.CorsDomains) > 0 {
-		allowedOrigins := make(map[string]bool)
+		allowedOrigins = make(map[string]bool)
 		for _, origin := range strings.Split(s.CorsDomains, ",") {
 			allowedOrigins[strings.TrimSpace(origin)] = true
 		}
-		corsMiddleware = func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				origin := r.Header.Get("Origin")
-				if allowedOrigins[origin] {
+	}
+	corsMiddleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if origin != "" {
+				if allowedOrigins == nil || allowedOrigins[origin] {
 					w.Header().Set("Access-Control-Allow-Origin", origin)
 					w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, DELETE, OPTIONS")
 					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Max-Downloads, Max-Days, X-Encrypt-Password, Authorization")
 					w.Header().Set("Access-Control-Expose-Headers", "X-Url-Delete")
 					w.Header().Set("Access-Control-Max-Age", "86400")
 				}
-				if r.Method == http.MethodOptions {
-					w.WriteHeader(http.StatusNoContent)
-					return
-				}
-				next.ServeHTTP(w, r)
-			})
-		}
-	} else {
-		corsMiddleware = func(h http.Handler) http.Handler {
-			return h
-		}
+			}
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
 	}
 
 	h := corsMiddleware(
