@@ -1,0 +1,49 @@
+build/
+pkg/
+bin/
+*.pyc
+*.egg-info/
+.idea/
+
+.tmp
+
+bower_components/
+node_modules/
+
+# Compiled binaries
+sendto
+sendto.exe
+ctrlbreak.exe
+runserver.exe
+send.to.exe
+
+# Local runtime data
+data/
+coverage.out
+coverage.html
+
+# Secrets and credentials
+.env
+.env.*
+*.key
+*.pem
+*.htpasswd
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Astro build cache
+web/.astro/
+web/dist/
+
+# Claude Code local settings
+.claude/
+
+# Temp files
+.plan
+design-system/
+docs/

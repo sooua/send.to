@@ -1,0 +1,85 @@
+# docker-compose.yml — one-click deployment for send.to
+#
+# Quick start:
+#   cp .env.example .env     # optional — edit values as needed
+#   docker compose up -d     # builds & starts in background
+#   docker compose logs -f   # tail logs
+#   docker compose down      # stop & remove
+#
+# Image is built locally from the repository checkout. To use a prebuilt
+# image, comment out `build:` and set `image: ghcr.io/sooua/send.to:latest`.
+
+services:
+  sendto:
+    build:
+      context: .
+      args:
+        GO_VERSION: "1.25"
+        NODE_VERSION: "20"
+    image: sendto:local
+    container_name: sendto
+    restart: unless-stopped
+
+    ports:
+      - "${HOST_PORT:-8080}:8080"
+
+    volumes:
+      - sendto-data:/data
+
+    environment:
+      # Core
+      PROVIDER: "${PROVIDER:-local}"
+      BASEDIR: "${BASEDIR:-/data}"
+      LISTENER: ":8080"
+      WEB_PATH: "${WEB_PATH:-/app/web}"
+
+      # Limits & lifecycle
+      MAX_UPLOAD_SIZE: "${MAX_UPLOAD_SIZE:-0}"   # 0 = unlimited, value in KB
+      RATE_LIMIT: "${RATE_LIMIT:-0}"             # req/min per IP, 0 = off
+      PURGE_DAYS: "${PURGE_DAYS:-30}"
+      PURGE_INTERVAL: "${PURGE_INTERVAL:-1}"
+      SHUTDOWN_TIMEOUT: "${SHUTDOWN_TIMEOUT:-30s}"
+      RANDOM_TOKEN_LENGTH: "${RANDOM_TOKEN_LENGTH:-10}"
+
+      # Optional auth (leave empty to disable)
+      HTTP_AUTH_USER: "${HTTP_AUTH_USER:-}"
+      HTTP_AUTH_PASS: "${HTTP_AUTH_PASS:-}"
+
+      # Optional CORS / proxy
+      CORS_DOMAINS: "${CORS_DOMAINS:-}"
+      PROXY_PATH: "${PROXY_PATH:-}"
+
+      # Optional virus scanning
+      CLAMAV_HOST: "${CLAMAV_HOST:-}"
+      PERFORM_CLAMAV_PRESCAN: "${PERFORM_CLAMAV_PRESCAN:-false}"
+      VIRUSTOTAL_KEY: "${VIRUSTOTAL_KEY:-}"
+
+      # Optional S3 backend (set PROVIDER=s3)
+      S3_ENDPOINT: "${S3_ENDPOINT:-}"
+      S3_REGION: "${S3_REGION:-eu-west-1}"
+      AWS_ACCESS_KEY: "${AWS_ACCESS_KEY:-}"
+      AWS_SECRET_KEY: "${AWS_SECRET_KEY:-}"
+      BUCKET: "${BUCKET:-}"
+
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=128M,uid=10001,gid=10001,mode=1777
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  sendto-data:
+    driver: local

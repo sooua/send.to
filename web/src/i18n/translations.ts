@@ -1,0 +1,713 @@
+// i18n 翻译系统
+export const languages = {
+  en: "English",
+  zh: "中文",
+  ja: "日本語",
+} as const;
+
+export type Lang = keyof typeof languages;
+export const defaultLang: Lang = "en";
+
+export const translations: Record<Lang, Record<string, string>> = {
+  en: {
+    // Navbar
+    "nav.home": "Home",
+    "nav.apiDocs": "API Docs",
+    "nav.useCases": "Use Cases",
+    "nav.about": "About",
+    // Hero
+    "hero.title": "send.to",
+    "hero.subtitle":
+      "Easy and fast file sharing from the command line. Upload files and get a shareable link instantly.",
+    // Upload
+    "upload.dropzone": "Drop a file here or",
+    "upload.browse": "browse",
+    "upload.hint": "Files are encrypted in transit and auto-expire",
+    "upload.uploading": "Uploading...",
+    "upload.complete": "Upload complete",
+    "upload.failed": "Upload failed",
+    "upload.another": "Upload another file",
+    "upload.shareLink": "Share link",
+    "upload.downloadCmd": "Download with curl",
+    "upload.deleteCmd": "Delete file",
+    "upload.backendError":
+      "Backend not running. Start it with: go run main.go --provider local --basedir /tmp/send.to --listener :8080",
+    "upload.eta": "ETA",
+    "upload.cancel": "Cancel",
+    "upload.close": "Close",
+    "upload.copyLink": "Copy link",
+    "upload.copyCurl": "Copy curl command",
+    "upload.copyDelete": "Copy delete command",
+    "upload.copyFailed": "Copy failed — please copy manually",
+    "upload.tooLarge": "File is too large",
+    // CLI section
+    "cli.divider": "or use the command line",
+    // Features (index page cards)
+    "feature.encryption": "End-to-end encryption",
+    "feature.encryptionDesc": "Encrypt files with a password before upload using OpenPGP AES-256.",
+    "feature.expiration": "Auto-expiration",
+    "feature.expirationDesc":
+      "Set download limits and expiration dates. Files are automatically purged.",
+    "feature.selfHosted": "Self-hosted",
+    "feature.selfHostedDesc":
+      "Deploy your own instance with Docker. Single binary, zero external dependencies.",
+    // About page category headings
+    "about.featureTransfer": "File Transfer",
+    "about.featureSecurity": "Security",
+    "about.featurePreview": "Preview & Clients",
+    "about.featureInfra": "Infrastructure",
+    // Features (about page list)
+    "feature.shareUrl": "Share files with a URL",
+    "feature.unlimitedUpload": "Unlimited uploads",
+    "feature.maxDownloads": "Set maximum download count per file",
+    "feature.multiUpload": "Upload multiple files at once",
+    "feature.archiveDownload": "Combine downloads as ZIP, TAR, or TAR.GZ archive",
+    "feature.resumable": "Resumable downloads via HTTP Range requests",
+    "feature.deleteToken": "Delete files with a unique deletion token",
+    "feature.storage": "Multiple storage backends: local, S3, Google Drive, Storj",
+    "feature.s3Compat": "S3-compatible storage (Minio, DigitalOcean Spaces, etc.)",
+    "feature.virusScan": "Virus scanning with ClamAV and VirusTotal",
+    "feature.auth": "HTTP Basic Auth, htpasswd, and IP whitelist/blacklist",
+    "feature.tls": "Automatic TLS via Let's Encrypt",
+    "feature.rateLimit": "Per-IP rate limiting",
+    "feature.preview": "File preview for images, video, audio, and Markdown",
+    "feature.qrCode": "QR code generation for download links",
+    "feature.altClients": "Works with curl, wget, HTTPie, and PowerShell",
+    "feature.gpgOpenssl": "Client-side encryption with GPG or OpenSSL",
+    "feature.keybase": "Keybase.io integration for recipient-specific encryption",
+    "feature.proxy": "Reverse proxy support with configurable path prefix and port",
+    "feature.cors": "CORS support for cross-origin requests",
+    "feature.profiler": "Built-in Go profiler for performance monitoring",
+    // Footer
+    "footer.license": "MIT License",
+    // 404
+    "error.notFound": "File not found",
+    "error.notFoundDesc":
+      "The file may have expired, reached its download limit, or never existed.",
+    "error.backHome": "Back to home",
+    // About
+    "about.title": "About",
+    "about.subtitle":
+      "send.to is an open-source file sharing service that makes it easy to share files from the command line.",
+    "about.whatIs": "What is send.to?",
+    "about.whatIsDesc":
+      "send.to is a lightweight, self-hosted file sharing service built with Go. It compiles to a single static binary with zero external dependencies, making it trivial to deploy. Upload files via curl or the web interface, get a shareable link, and files auto-expire based on your configuration.",
+    "about.features": "Features",
+    "about.selfHosting": "Self-hosting",
+    "about.selfHostingDesc": "Deploy your own instance with Docker in seconds:",
+    "about.techStack": "Tech Stack",
+    "about.links": "Links",
+    "about.github": "GitHub Repository",
+    "about.issues": "Report an Issue",
+    // Tech Stack labels
+    "tech.language": "Language",
+    "tech.router": "Router",
+    "tech.encryption": "Encryption",
+    "tech.deployment": "Deployment",
+    "tech.storage": "Storage",
+    "tech.frontend": "Frontend",
+    // API Docs
+    "api.title": "API Documentation",
+    "api.subtitle":
+      "send.to provides a simple HTTP API for uploading, downloading, and managing files. All endpoints accept standard HTTP methods and can be used with curl or any HTTP client.",
+    "api.upload": "Upload",
+    "api.uploadDesc":
+      "Upload a file using PUT or POST. The response contains the download URL. The X-Url-Delete response header contains the deletion URL.",
+    "api.download": "Download",
+    "api.downloadDesc":
+      "Download or preview a file. Supports range requests for resumable downloads. The default GET endpoint auto-detects preview vs download based on Accept and Referer headers.",
+    "api.delete": "Delete",
+    "api.deleteDesc":
+      "Delete a file using the deletion token returned in the X-Url-Delete response header during upload.",
+    "api.archive": "Archive Download",
+    "api.archiveDesc":
+      "Download multiple files as a single archive (ZIP, TAR, or TAR.GZ). Separate file paths with commas.",
+    "api.scan": "Virus Scan",
+    "api.scanDesc":
+      "Scan uploaded files with ClamAV or VirusTotal (requires server configuration).",
+    "api.scanNote":
+      "When --perform-clamav-prescan is enabled, all uploads are automatically scanned before being accepted. Infected files are rejected with HTTP 412.",
+    "api.headers": "Request Headers",
+    "api.headersDesc": "Optional headers to control upload and download behavior.",
+    "api.uploadHeaders": "Upload Headers",
+    "api.downloadHeaders": "Download Headers",
+    "api.responseHeaders": "Response Headers",
+    "api.responseHeadersDesc": "Headers returned by the server in upload and download responses.",
+    "api.uploadResponseHeaders": "Upload Response",
+    "api.downloadResponseHeaders": "Download Response",
+    "api.errors": "Error Codes",
+    "api.errorsDesc": "Common HTTP status codes returned by the API.",
+    // Code block titles
+    "code.copy": "Copy",
+    "code.copied": "Copied!",
+    "code.uploadFile": "upload a file",
+    "code.encryptUpload": "encrypt & upload",
+    "code.setLimits": "set limits",
+    "code.downloadFile": "download a file",
+    "code.deleteFile": "delete a file",
+    "code.dockerRun": "docker run",
+    "code.dockerRunS3": "docker run with S3",
+    "code.multiUpload": "upload multiple files",
+    "code.combineArchive": "combine as archive",
+    "code.gpgEncrypt": "gpg encrypt & upload",
+    "code.gpgDecrypt": "download & decrypt",
+    "code.clamavScan": "clamav scan",
+    "code.virustotalScan": "virustotal scan",
+    "code.mysqlBackup": "mysql backup",
+    "code.transferEmail": "transfer & email",
+    "code.keybaseEncrypt": "keybase encrypt",
+    "code.keybaseDecrypt": "keybase decrypt",
+    "code.wget": "wget",
+    "code.httpie": "httpie",
+    "code.powershell": "powershell",
+    "code.opensslEncrypt": "openssl encrypt",
+    "code.opensslDecrypt": "openssl decrypt",
+    "code.dockerAdvanced": "with encryption & limits",
+    "code.pipeLogs": "pipe logs",
+    // Use cases
+    "usecase.title": "Use Cases",
+    "usecase.subtitle":
+      "Real-world examples of how to use send.to with curl, GPG, OpenSSL, and other tools.",
+    "usecase.divider": "use cases",
+    "usecase.viewAll": "View all use cases →",
+    "usecase.gpgEncryptShort": "Pipe through gpg for end-to-end encryption with your own keys.",
+    "usecase.dbBackupShort": "Backup, compress, encrypt, and transfer databases in one pipeline.",
+    "usecase.malwareScanShort": "Scan files with ClamAV or VirusTotal before sharing.",
+    "usecase.multiUpload": "Upload Multiple Files",
+    "usecase.multiUploadDesc":
+      "Upload multiple files at once using multipart form data. Combine downloads as ZIP or TAR archives.",
+    "usecase.gpgEncrypt": "Encrypt with GPG",
+    "usecase.gpgEncryptDesc":
+      "Encrypt files with GPG before transfer. Pipe through gpg for maximum security with your own keys.",
+    "usecase.malwareScan": "Scan for Malware",
+    "usecase.malwareScanDesc":
+      "Scan uploaded files for viruses using ClamAV or upload to VirusTotal for comprehensive analysis.",
+    "usecase.dbBackup": "Database Backup",
+    "usecase.dbBackupDesc":
+      "Backup MySQL databases, compress with gzip, encrypt with GPG, and transfer — all in one pipeline.",
+    "usecase.emailLink": "Email with Transfer Link",
+    "usecase.emailLinkDesc":
+      "Upload a file and pipe the download link directly to an email using the shell transfer function.",
+    "usecase.keybase": "Use with Keybase",
+    "usecase.keybaseDesc":
+      "Encrypt files for specific recipients using Keybase keys. Import, encrypt, upload, and decrypt seamlessly.",
+    "usecase.altClients": "Alternative Clients",
+    "usecase.altClientsDesc":
+      "Works with wget, HTTPie, PowerShell, and third-party CLI tools. Use your preferred HTTP client.",
+    "usecase.openssl": "Encrypt with OpenSSL",
+    "usecase.opensslDesc":
+      "Use OpenSSL AES-256-CBC encryption for files before transfer. No GPG required.",
+    "usecase.pipeLogs": "Pipe Logs & Output",
+    "usecase.pipeLogsDesc":
+      "Pipe any command output directly to send.to. Share syslog entries, grep results, or any stream.",
+    // Code block comments
+    "code.comment.setLimits": "# max 5 downloads, expires in 7 days",
+    "code.comment.multiUpload": "# upload multiple files at once",
+    "code.comment.combineArchive": "# download as zip or tar.gz",
+    "code.comment.gpgEncrypt": "# encrypt with gpg and upload",
+    "code.comment.gpgDecrypt": "# download and decrypt",
+    "code.comment.clamavScan": "# scan with ClamAV",
+    "code.comment.virustotalScan": "# upload to VirusTotal",
+    "code.comment.mysqlBackup": "# backup, encrypt and transfer",
+    "code.comment.transferEmail": "# transfer and send email with link",
+    "code.comment.keybaseEncrypt": "# encrypt for recipient and upload",
+    "code.comment.keybaseDecrypt": "# download and decrypt",
+    "code.comment.wget": "# upload with wget",
+    "code.comment.httpie": "# upload with HTTPie",
+    "code.comment.powershell": "# upload with PowerShell",
+    "code.comment.opensslEncrypt": "# encrypt with openssl and upload",
+    "code.comment.opensslDecrypt": "# download and decrypt",
+    "code.comment.pipeLogs": "# grep syslog and transfer",
+    // Q&A
+    "qa.divider": "questions & answers",
+    "qa.q1": "How do I upload a file?",
+    "qa.a1":
+      "Use curl to upload: curl --upload-file ./file.txt https://send.to/file.txt. You can also drag and drop files using the upload zone above.",
+    "qa.q2": "How long are files stored?",
+    "qa.a2":
+      "By default, files expire based on the server configuration. You can set a custom expiration with the Max-Days header, and limit downloads with Max-Downloads.",
+    "qa.q3": "Is my data encrypted?",
+    "qa.a3":
+      "Files are encrypted in transit via HTTPS. For server-side encryption, add the X-Encrypt-Password header to encrypt with OpenPGP AES-256. You can also encrypt client-side with GPG or OpenSSL before uploading.",
+    "qa.q4": "Can I delete a file after uploading?",
+    "qa.a4":
+      "Yes. Every upload returns a deletion URL in the X-Url-Delete response header. Use it with a DELETE request to remove the file immediately.",
+    "qa.q5": "Can I self-host send.to?",
+    "qa.a5":
+      "Yes. send.to compiles to a single static binary with zero dependencies. Run it with Docker or directly on your server. It supports local storage, S3, Google Drive, and Storj as backends.",
+    "qa.q6": "What is the maximum file size?",
+    "qa.a6":
+      "The maximum file size is configured by the server administrator using the --max-upload-size flag. There is no hard-coded limit in the application itself.",
+  },
+  zh: {
+    // Navbar
+    "nav.home": "首页",
+    "nav.apiDocs": "API 文档",
+    "nav.useCases": "使用场景",
+    "nav.about": "关于",
+    // Hero
+    "hero.title": "send.to",
+    "hero.subtitle": "从命令行轻松快速地分享文件。上传文件，即刻获取分享链接。",
+    // Upload
+    "upload.dropzone": "拖拽文件到此处或",
+    "upload.browse": "选择文件",
+    "upload.hint": "文件在传输中加密，并自动过期",
+    "upload.uploading": "上传中...",
+    "upload.complete": "上传完成",
+    "upload.failed": "上传失败",
+    "upload.another": "上传更多文件",
+    "upload.shareLink": "分享链接",
+    "upload.downloadCmd": "curl 下载命令",
+    "upload.deleteCmd": "删除文件",
+    "upload.backendError":
+      "后端未运行。请启动：go run main.go --provider local --basedir /tmp/send.to --listener :8080",
+    "upload.eta": "预计剩余",
+    "upload.cancel": "取消",
+    "upload.close": "关闭",
+    "upload.copyLink": "复制链接",
+    "upload.copyCurl": "复制 curl 命令",
+    "upload.copyDelete": "复制删除命令",
+    "upload.copyFailed": "复制失败 — 请手动复制",
+    "upload.tooLarge": "文件过大",
+    // CLI section
+    "cli.divider": "或使用命令行",
+    // Features (index page cards)
+    "feature.encryption": "端到端加密",
+    "feature.encryptionDesc": "使用 OpenPGP AES-256 在上传前加密文件。",
+    "feature.expiration": "自动过期",
+    "feature.expirationDesc": "设置下载次数限制和过期时间，文件自动清理。",
+    "feature.selfHosted": "自托管",
+    "feature.selfHostedDesc": "使用 Docker 部署你自己的实例。单一二进制，零外部依赖。",
+    // About page category headings
+    "about.featureTransfer": "文件传输",
+    "about.featureSecurity": "安全",
+    "about.featurePreview": "预览与客户端",
+    "about.featureInfra": "基础设施",
+    // Features (about page list)
+    "feature.shareUrl": "通过 URL 分享文件",
+    "feature.unlimitedUpload": "无限上传",
+    "feature.maxDownloads": "可设置每个文件的最大下载次数",
+    "feature.multiUpload": "一次上传多个文件",
+    "feature.archiveDownload": "合并下载为 ZIP、TAR 或 TAR.GZ 归档",
+    "feature.resumable": "通过 HTTP Range 请求实现断点续传",
+    "feature.deleteToken": "使用唯一删除令牌删除文件",
+    "feature.storage": "多种存储后端：本地、S3、Google Drive、Storj",
+    "feature.s3Compat": "兼容 S3 的存储（Minio、DigitalOcean Spaces 等）",
+    "feature.virusScan": "病毒扫描：支持 ClamAV 和 VirusTotal",
+    "feature.auth": "HTTP Basic Auth、htpasswd 和 IP 黑白名单",
+    "feature.tls": "通过 Let's Encrypt 自动配置 TLS",
+    "feature.rateLimit": "按 IP 限流",
+    "feature.preview": "文件预览：支持图片、视频、音频和 Markdown",
+    "feature.qrCode": "下载链接二维码生成",
+    "feature.altClients": "支持 curl、wget、HTTPie 和 PowerShell",
+    "feature.gpgOpenssl": "客户端使用 GPG 或 OpenSSL 加密",
+    "feature.keybase": "Keybase.io 集成，支持指定接收者加密",
+    "feature.proxy": "反向代理支持，可配置路径前缀和端口",
+    "feature.cors": "CORS 跨域请求支持",
+    "feature.profiler": "内置 Go 性能分析器",
+    // Footer
+    "footer.license": "MIT 许可证",
+    // 404
+    "error.notFound": "文件未找到",
+    "error.notFoundDesc": "文件可能已过期、下载次数已耗尽，或从未存在。",
+    "error.backHome": "返回首页",
+    // About
+    "about.title": "关于",
+    "about.subtitle": "send.to 是一个开源文件分享服务，让你从命令行轻松分享文件。",
+    "about.whatIs": "什么是 send.to？",
+    "about.whatIsDesc":
+      "send.to 是一个用 Go 构建的轻量级自托管文件分享服务。它编译为单一静态二进制文件，零外部依赖，部署极其简单。通过 curl 或 Web 界面上传文件，获取分享链接，文件根据配置自动过期。",
+    "about.features": "功能特性",
+    "about.selfHosting": "自托管部署",
+    "about.selfHostingDesc": "使用 Docker 秒级部署你自己的实例：",
+    "about.techStack": "技术栈",
+    "about.links": "链接",
+    "about.github": "GitHub 仓库",
+    "about.issues": "报告问题",
+    // Tech Stack labels
+    "tech.language": "编程语言",
+    "tech.router": "路由",
+    "tech.encryption": "加密",
+    "tech.deployment": "部署",
+    "tech.storage": "存储",
+    "tech.frontend": "前端",
+    // API Docs
+    "api.title": "API 文档",
+    "api.subtitle":
+      "send.to 提供简单的 HTTP API 用于上传、下载和管理文件。所有端点接受标准 HTTP 方法，可使用 curl 或任何 HTTP 客户端。",
+    "api.upload": "上传",
+    "api.uploadDesc":
+      "使用 PUT 或 POST 上传文件。响应包含下载 URL。X-Url-Delete 响应头包含删除 URL。",
+    "api.download": "下载",
+    "api.downloadDesc":
+      "下载或预览文件。支持 Range 请求实现断点续传。默认 GET 端点根据 Accept 和 Referer 头自动检测预览或下载。",
+    "api.delete": "删除",
+    "api.deleteDesc": "使用上传时 X-Url-Delete 响应头中返回的删除 token 删除文件。",
+    "api.archive": "归档下载",
+    "api.archiveDesc": "将多个文件打包为单个归档下载（ZIP、TAR 或 TAR.GZ）。用逗号分隔文件路径。",
+    "api.scan": "病毒扫描",
+    "api.scanDesc": "使用 ClamAV 或 VirusTotal 扫描上传的文件（需要服务器配置）。",
+    "api.scanNote":
+      "启用 --perform-clamav-prescan 后，所有上传文件在接受前自动扫描。感染文件将被拒绝，返回 HTTP 412。",
+    "api.headers": "请求头",
+    "api.headersDesc": "可选的请求头，用于控制上传和下载行为。",
+    "api.uploadHeaders": "上传请求头",
+    "api.downloadHeaders": "下载请求头",
+    "api.responseHeaders": "响应头",
+    "api.responseHeadersDesc": "服务器在上传和下载响应中返回的头信息。",
+    "api.uploadResponseHeaders": "上传响应",
+    "api.downloadResponseHeaders": "下载响应",
+    "api.errors": "错误码",
+    "api.errorsDesc": "API 返回的常见 HTTP 状态码。",
+    // Code block titles
+    "code.copy": "复制",
+    "code.copied": "已复制！",
+    "code.uploadFile": "上传文件",
+    "code.encryptUpload": "加密上传",
+    "code.setLimits": "设置限制",
+    "code.downloadFile": "下载文件",
+    "code.deleteFile": "删除文件",
+    "code.dockerRun": "Docker 运行",
+    "code.dockerRunS3": "Docker 运行（S3）",
+    "code.multiUpload": "上传多个文件",
+    "code.combineArchive": "合并为归档",
+    "code.gpgEncrypt": "GPG 加密上传",
+    "code.gpgDecrypt": "下载并解密",
+    "code.clamavScan": "ClamAV 扫描",
+    "code.virustotalScan": "VirusTotal 扫描",
+    "code.mysqlBackup": "MySQL 备份",
+    "code.transferEmail": "传输并发送邮件",
+    "code.keybaseEncrypt": "Keybase 加密",
+    "code.keybaseDecrypt": "Keybase 解密",
+    "code.wget": "wget",
+    "code.httpie": "httpie",
+    "code.powershell": "powershell",
+    "code.opensslEncrypt": "OpenSSL 加密",
+    "code.opensslDecrypt": "OpenSSL 解密",
+    "code.dockerAdvanced": "加密与限制配置",
+    "code.pipeLogs": "管道日志",
+    // Use cases
+    "usecase.title": "使用场景",
+    "usecase.subtitle": "使用 curl、GPG、OpenSSL 和其他工具操作 send.to 的实际示例。",
+    "usecase.divider": "使用场景",
+    "usecase.viewAll": "查看所有使用场景 →",
+    "usecase.gpgEncryptShort": "通过 gpg 管道实现端到端加密，使用你自己的密钥。",
+    "usecase.dbBackupShort": "一条管道完成数据库备份、压缩、加密和传输。",
+    "usecase.malwareScanShort": "分享前使用 ClamAV 或 VirusTotal 扫描文件。",
+    "usecase.multiUpload": "一次上传多个文件",
+    "usecase.multiUploadDesc":
+      "使用 multipart 表单数据一次上传多个文件。合并下载为 ZIP 或 TAR 归档。",
+    "usecase.gpgEncrypt": "GPG 加密传输",
+    "usecase.gpgEncryptDesc":
+      "传输前使用 GPG 加密文件。通过 gpg 管道实现最高安全性，使用你自己的密钥。",
+    "usecase.malwareScan": "恶意软件扫描",
+    "usecase.malwareScanDesc":
+      "使用 ClamAV 扫描上传文件中的病毒，或上传到 VirusTotal 进行全面分析。",
+    "usecase.dbBackup": "数据库备份",
+    "usecase.dbBackupDesc":
+      "备份 MySQL 数据库，用 gzip 压缩，用 GPG 加密，然后传输——一条管道搞定。",
+    "usecase.emailLink": "邮件发送传输链接",
+    "usecase.emailLinkDesc": "上传文件后，使用 shell transfer 函数将下载链接直接通过邮件发送。",
+    "usecase.keybase": "配合 Keybase 使用",
+    "usecase.keybaseDesc": "使用 Keybase 密钥为特定接收者加密文件。无缝导入、加密、上传和解密。",
+    "usecase.altClients": "多种客户端",
+    "usecase.altClientsDesc":
+      "支持 wget、HTTPie、PowerShell 和第三方 CLI 工具。使用你喜欢的 HTTP 客户端。",
+    "usecase.openssl": "OpenSSL 加密传输",
+    "usecase.opensslDesc": "传输前使用 OpenSSL AES-256-CBC 加密文件。无需 GPG。",
+    "usecase.pipeLogs": "管道日志与输出",
+    "usecase.pipeLogsDesc":
+      "将任何命令输出直接管道到 send.to。分享 syslog 条目、grep 结果或任何流。",
+    // Code block comments
+    "code.comment.setLimits": "# 最多 5 次下载，7 天后过期",
+    "code.comment.multiUpload": "# 一次上传多个文件",
+    "code.comment.combineArchive": "# 下载为 zip 或 tar.gz",
+    "code.comment.gpgEncrypt": "# 使用 gpg 加密并上传",
+    "code.comment.gpgDecrypt": "# 下载并解密",
+    "code.comment.clamavScan": "# 使用 ClamAV 扫描",
+    "code.comment.virustotalScan": "# 上传到 VirusTotal",
+    "code.comment.mysqlBackup": "# 备份、加密并传输",
+    "code.comment.transferEmail": "# 传输并通过邮件发送链接",
+    "code.comment.keybaseEncrypt": "# 为接收者加密并上传",
+    "code.comment.keybaseDecrypt": "# 下载并解密",
+    "code.comment.wget": "# 使用 wget 上传",
+    "code.comment.httpie": "# 使用 HTTPie 上传",
+    "code.comment.powershell": "# 使用 PowerShell 上传",
+    "code.comment.opensslEncrypt": "# 使用 openssl 加密并上传",
+    "code.comment.opensslDecrypt": "# 下载并解密",
+    "code.comment.pipeLogs": "# 过滤 syslog 并传输",
+    // Q&A
+    "qa.divider": "常见问题",
+    "qa.q1": "如何上传文件？",
+    "qa.a1":
+      "使用 curl 上传：curl --upload-file ./file.txt https://send.to/file.txt。也可以通过上方的上传区域拖拽文件上传。",
+    "qa.q2": "文件会保存多久？",
+    "qa.a2":
+      "默认情况下，文件根据服务器配置自动过期。你可以通过 Max-Days 头设置自定义过期时间，通过 Max-Downloads 限制下载次数。",
+    "qa.q3": "我的数据是否加密？",
+    "qa.a3":
+      "文件通过 HTTPS 在传输中加密。如需服务端加密，添加 X-Encrypt-Password 头即可使用 OpenPGP AES-256 加密。你也可以在上传前使用 GPG 或 OpenSSL 进行客户端加密。",
+    "qa.q4": "上传后可以删除文件吗？",
+    "qa.a4":
+      "可以。每次上传都会在 X-Url-Delete 响应头中返回删除 URL。使用 DELETE 请求即可立即删除文件。",
+    "qa.q5": "可以自托管 send.to 吗？",
+    "qa.a5":
+      "可以。send.to 编译为单一静态二进制文件，零依赖。可以使用 Docker 或直接在服务器上运行。支持本地存储、S3、Google Drive 和 Storj 作为后端。",
+    "qa.q6": "最大文件大小是多少？",
+    "qa.a6": "最大文件大小由服务器管理员通过 --max-upload-size 参数配置。应用本身没有硬编码限制。",
+  },
+  ja: {
+    // Navbar
+    "nav.home": "ホーム",
+    "nav.apiDocs": "APIドキュメント",
+    "nav.useCases": "ユースケース",
+    "nav.about": "概要",
+    // Hero
+    "hero.title": "send.to",
+    "hero.subtitle":
+      "コマンドラインから簡単・高速にファイルを共有。アップロードして、共有リンクを即座に取得。",
+    // Upload
+    "upload.dropzone": "ファイルをここにドロップまたは",
+    "upload.browse": "参照",
+    "upload.hint": "ファイルは転送中に暗号化され、自動的に期限切れになります",
+    "upload.uploading": "アップロード中...",
+    "upload.complete": "アップロード完了",
+    "upload.failed": "アップロード失敗",
+    "upload.another": "別のファイルをアップロード",
+    "upload.shareLink": "共有リンク",
+    "upload.downloadCmd": "curlでダウンロード",
+    "upload.deleteCmd": "ファイルを削除",
+    "upload.backendError":
+      "バックエンドが起動していません。起動コマンド: go run main.go --provider local --basedir /tmp/send.to --listener :8080",
+    "upload.eta": "残り時間",
+    "upload.cancel": "キャンセル",
+    "upload.close": "閉じる",
+    "upload.copyLink": "リンクをコピー",
+    "upload.copyCurl": "curl コマンドをコピー",
+    "upload.copyDelete": "削除コマンドをコピー",
+    "upload.copyFailed": "コピー失敗 — 手動でコピーしてください",
+    "upload.tooLarge": "ファイルサイズが大きすぎます",
+    // CLI section
+    "cli.divider": "またはコマンドラインを使用",
+    // Features (index page cards)
+    "feature.encryption": "エンドツーエンド暗号化",
+    "feature.encryptionDesc": "OpenPGP AES-256でアップロード前にファイルを暗号化。",
+    "feature.expiration": "自動期限切れ",
+    "feature.expirationDesc":
+      "ダウンロード回数制限と有効期限を設定。ファイルは自動的に削除されます。",
+    "feature.selfHosted": "セルフホスト",
+    "feature.selfHostedDesc": "Dockerで独自インスタンスをデプロイ。単一バイナリ、外部依存ゼロ。",
+    // About page category headings
+    "about.featureTransfer": "ファイル転送",
+    "about.featureSecurity": "セキュリティ",
+    "about.featurePreview": "プレビュー＆クライアント",
+    "about.featureInfra": "インフラストラクチャ",
+    // Features (about page list)
+    "feature.shareUrl": "URLでファイルを共有",
+    "feature.unlimitedUpload": "無制限アップロード",
+    "feature.maxDownloads": "ファイルごとの最大ダウンロード回数設定",
+    "feature.multiUpload": "複数ファイルの一括アップロード",
+    "feature.archiveDownload": "ZIP、TAR、TAR.GZ アーカイブとしてまとめてダウンロード",
+    "feature.resumable": "HTTP Range リクエストによるレジューム可能なダウンロード",
+    "feature.deleteToken": "一意の削除トークンでファイルを削除",
+    "feature.storage": "複数のストレージバックエンド：ローカル、S3、Google Drive、Storj",
+    "feature.s3Compat": "S3 互換ストレージ（Minio、DigitalOcean Spaces など）",
+    "feature.virusScan": "ClamAV と VirusTotal によるウイルススキャン",
+    "feature.auth": "HTTP Basic Auth、htpasswd、IP ホワイトリスト/ブラックリスト",
+    "feature.tls": "Let's Encrypt による自動 TLS",
+    "feature.rateLimit": "IP ごとのレート制限",
+    "feature.preview": "画像、動画、音声、Markdown のファイルプレビュー",
+    "feature.qrCode": "ダウンロードリンクの QR コード生成",
+    "feature.altClients": "curl、wget、HTTPie、PowerShell に対応",
+    "feature.gpgOpenssl": "クライアント側で GPG または OpenSSL による暗号化",
+    "feature.keybase": "Keybase.io 連携で受信者指定の暗号化",
+    "feature.proxy": "リバースプロキシ対応（パスプレフィックスとポート設定可能）",
+    "feature.cors": "クロスオリジンリクエストの CORS サポート",
+    "feature.profiler": "パフォーマンス監視用の組み込み Go プロファイラー",
+    // Footer
+    "footer.license": "MITライセンス",
+    // 404
+    "error.notFound": "ファイルが見つかりません",
+    "error.notFoundDesc":
+      "ファイルは期限切れ、ダウンロード上限到達、または存在しない可能性があります。",
+    "error.backHome": "ホームに戻る",
+    // About
+    "about.title": "概要",
+    "about.subtitle":
+      "send.to はコマンドラインから簡単にファイルを共有できるオープンソースのファイル共有サービスです。",
+    "about.whatIs": "send.to とは？",
+    "about.whatIsDesc":
+      "send.to は Go で構築された軽量なセルフホスト型ファイル共有サービスです。外部依存ゼロの単一静的バイナリにコンパイルされ、デプロイが非常に簡単です。curl または Web インターフェースでファイルをアップロードし、共有リンクを取得。ファイルは設定に基づいて自動的に期限切れになります。",
+    "about.features": "機能",
+    "about.selfHosting": "セルフホスティング",
+    "about.selfHostingDesc": "Dockerで数秒でデプロイ：",
+    "about.techStack": "技術スタック",
+    "about.links": "リンク",
+    "about.github": "GitHubリポジトリ",
+    "about.issues": "問題を報告",
+    // Tech Stack labels
+    "tech.language": "言語",
+    "tech.router": "ルーター",
+    "tech.encryption": "暗号化",
+    "tech.deployment": "デプロイ",
+    "tech.storage": "ストレージ",
+    "tech.frontend": "フロントエンド",
+    // API Docs
+    "api.title": "APIドキュメント",
+    "api.subtitle":
+      "send.to はファイルのアップロード、ダウンロード、管理のためのシンプルな HTTP API を提供します。すべてのエンドポイントは標準 HTTP メソッドを受け付け、curl や任意の HTTP クライアントで使用できます。",
+    "api.upload": "アップロード",
+    "api.uploadDesc":
+      "PUT または POST でファイルをアップロード。レスポンスにダウンロード URL が含まれます。X-Url-Delete レスポンスヘッダーに削除 URL が含まれます。",
+    "api.download": "ダウンロード",
+    "api.downloadDesc":
+      "ファイルのダウンロードまたはプレビュー。レジューム可能なダウンロードのための Range リクエストをサポート。デフォルトの GET エンドポイントは Accept と Referer ヘッダーに基づいてプレビューとダウンロードを自動検出します。",
+    "api.delete": "削除",
+    "api.deleteDesc":
+      "アップロード時の X-Url-Delete レスポンスヘッダーで返された削除トークンを使用してファイルを削除。",
+    "api.archive": "アーカイブダウンロード",
+    "api.archiveDesc":
+      "複数ファイルを単一アーカイブとしてダウンロード（ZIP、TAR、TAR.GZ）。ファイルパスはカンマで区切ります。",
+    "api.scan": "ウイルススキャン",
+    "api.scanDesc":
+      "ClamAV または VirusTotal でアップロードファイルをスキャン（サーバー設定が必要）。",
+    "api.scanNote":
+      "--perform-clamav-prescan を有効にすると、すべてのアップロードが受け入れ前に自動スキャンされます。感染ファイルは HTTP 412 で拒否されます。",
+    "api.headers": "リクエストヘッダー",
+    "api.headersDesc": "アップロードとダウンロードの動作を制御するオプションヘッダー。",
+    "api.uploadHeaders": "アップロードヘッダー",
+    "api.downloadHeaders": "ダウンロードヘッダー",
+    "api.responseHeaders": "レスポンスヘッダー",
+    "api.responseHeadersDesc": "アップロードおよびダウンロードレスポンスでサーバーが返すヘッダー。",
+    "api.uploadResponseHeaders": "アップロードレスポンス",
+    "api.downloadResponseHeaders": "ダウンロードレスポンス",
+    "api.errors": "エラーコード",
+    "api.errorsDesc": "API が返す一般的な HTTP ステータスコード。",
+    // Code block titles
+    "code.copy": "コピー",
+    "code.copied": "コピー済み！",
+    "code.uploadFile": "ファイルをアップロード",
+    "code.encryptUpload": "暗号化してアップロード",
+    "code.setLimits": "制限を設定",
+    "code.downloadFile": "ファイルをダウンロード",
+    "code.deleteFile": "ファイルを削除",
+    "code.dockerRun": "Docker 実行",
+    "code.dockerRunS3": "Docker 実行（S3）",
+    "code.multiUpload": "複数ファイルをアップロード",
+    "code.combineArchive": "アーカイブとして結合",
+    "code.gpgEncrypt": "GPG 暗号化してアップロード",
+    "code.gpgDecrypt": "ダウンロードして復号",
+    "code.clamavScan": "ClamAV スキャン",
+    "code.virustotalScan": "VirusTotal スキャン",
+    "code.mysqlBackup": "MySQL バックアップ",
+    "code.transferEmail": "転送してメール送信",
+    "code.keybaseEncrypt": "Keybase 暗号化",
+    "code.keybaseDecrypt": "Keybase 復号",
+    "code.wget": "wget",
+    "code.httpie": "httpie",
+    "code.powershell": "powershell",
+    "code.opensslEncrypt": "OpenSSL 暗号化",
+    "code.opensslDecrypt": "OpenSSL 復号",
+    "code.dockerAdvanced": "暗号化と制限設定",
+    "code.pipeLogs": "ログをパイプ",
+    // Use cases
+    "usecase.title": "ユースケース",
+    "usecase.subtitle": "curl、GPG、OpenSSL、その他のツールで send.to を使用する実際の例。",
+    "usecase.divider": "ユースケース",
+    "usecase.viewAll": "すべてのユースケースを見る →",
+    "usecase.gpgEncryptShort": "gpg パイプで自分の鍵を使ったエンドツーエンド暗号化。",
+    "usecase.dbBackupShort": "一つのパイプラインでデータベースのバックアップ、圧縮、暗号化、転送。",
+    "usecase.malwareScanShort": "共有前に ClamAV または VirusTotal でファイルをスキャン。",
+    "usecase.multiUpload": "複数ファイルの一括アップロード",
+    "usecase.multiUploadDesc":
+      "マルチパートフォームデータで複数ファイルを一度にアップロード。ZIPやTARアーカイブとしてまとめてダウンロード。",
+    "usecase.gpgEncrypt": "GPG で暗号化転送",
+    "usecase.gpgEncryptDesc":
+      "転送前に GPG でファイルを暗号化。自分の鍵を使い、gpg パイプで最高のセキュリティを実現。",
+    "usecase.malwareScan": "マルウェアスキャン",
+    "usecase.malwareScanDesc":
+      "ClamAV でアップロードファイルのウイルスをスキャン、または VirusTotal にアップロードして包括的な分析を実行。",
+    "usecase.dbBackup": "データベースバックアップ",
+    "usecase.dbBackupDesc":
+      "MySQL データベースをバックアップし、gzip で圧縮、GPG で暗号化、そして転送——すべて一つのパイプラインで。",
+    "usecase.emailLink": "転送リンクをメールで送信",
+    "usecase.emailLinkDesc":
+      "ファイルをアップロードし、シェルの transfer 関数を使ってダウンロードリンクを直接メールで送信。",
+    "usecase.keybase": "Keybase と連携",
+    "usecase.keybaseDesc":
+      "Keybase の鍵を使って特定の受信者向けにファイルを暗号化。インポート、暗号化、アップロード、復号をシームレスに。",
+    "usecase.altClients": "代替クライアント",
+    "usecase.altClientsDesc":
+      "wget、HTTPie、PowerShell、サードパーティ CLI ツールに対応。お好みの HTTP クライアントを使用可能。",
+    "usecase.openssl": "OpenSSL で暗号化転送",
+    "usecase.opensslDesc": "転送前に OpenSSL AES-256-CBC でファイルを暗号化。GPG 不要。",
+    "usecase.pipeLogs": "ログ＆出力をパイプ",
+    "usecase.pipeLogsDesc":
+      "任意のコマンド出力を直接 send.to にパイプ。syslog エントリ、grep 結果、任意のストリームを共有。",
+    // Code block comments
+    "code.comment.setLimits": "# 最大5回ダウンロード、7日後に期限切れ",
+    "code.comment.multiUpload": "# 複数ファイルを一度にアップロード",
+    "code.comment.combineArchive": "# zip または tar.gz でダウンロード",
+    "code.comment.gpgEncrypt": "# gpg で暗号化してアップロード",
+    "code.comment.gpgDecrypt": "# ダウンロードして復号",
+    "code.comment.clamavScan": "# ClamAV でスキャン",
+    "code.comment.virustotalScan": "# VirusTotal にアップロード",
+    "code.comment.mysqlBackup": "# バックアップ、暗号化して転送",
+    "code.comment.transferEmail": "# 転送してリンクをメールで送信",
+    "code.comment.keybaseEncrypt": "# 受信者向けに暗号化してアップロード",
+    "code.comment.keybaseDecrypt": "# ダウンロードして復号",
+    "code.comment.wget": "# wget でアップロード",
+    "code.comment.httpie": "# HTTPie でアップロード",
+    "code.comment.powershell": "# PowerShell でアップロード",
+    "code.comment.opensslEncrypt": "# openssl で暗号化してアップロード",
+    "code.comment.opensslDecrypt": "# ダウンロードして復号",
+    "code.comment.pipeLogs": "# syslog をフィルタして転送",
+    // Q&A
+    "qa.divider": "よくある質問",
+    "qa.q1": "ファイルをアップロードするには？",
+    "qa.a1":
+      "curl でアップロード：curl --upload-file ./file.txt https://send.to/file.txt。上のアップロードゾーンにファイルをドラッグ＆ドロップすることもできます。",
+    "qa.q2": "ファイルはどのくらい保存されますか？",
+    "qa.a2":
+      "デフォルトでは、サーバー設定に基づいてファイルが自動的に期限切れになります。Max-Days ヘッダーでカスタム有効期限を設定し、Max-Downloads でダウンロード回数を制限できます。",
+    "qa.q3": "データは暗号化されていますか？",
+    "qa.a3":
+      "ファイルは HTTPS で転送中に暗号化されます。サーバー側暗号化には X-Encrypt-Password ヘッダーを追加して OpenPGP AES-256 で暗号化できます。アップロード前に GPG や OpenSSL でクライアント側暗号化も可能です。",
+    "qa.q4": "アップロード後にファイルを削除できますか？",
+    "qa.a4":
+      "はい。すべてのアップロードで X-Url-Delete レスポンスヘッダーに削除 URL が返されます。DELETE リクエストで即座にファイルを削除できます。",
+    "qa.q5": "send.to をセルフホストできますか？",
+    "qa.a5":
+      "はい。send.to は依存関係ゼロの単一静的バイナリにコンパイルされます。Docker またはサーバーで直接実行できます。ローカル、S3、Google Drive、Storj をバックエンドとしてサポートしています。",
+    "qa.q6": "最大ファイルサイズは？",
+    "qa.a6":
+      "最大ファイルサイズはサーバー管理者が --max-upload-size フラグで設定します。アプリケーション自体にハードコードされた制限はありません。",
+  },
+};
+
+export function t(lang: Lang, key: string): string {
+  return translations[lang]?.[key] ?? translations.en[key] ?? key;
+}
+
+export function getLangFromUrl(url: URL): Lang {
+  const lang = url.searchParams.get("lang");
+  if (lang && lang in languages) return lang as Lang;
+  return defaultLang;
+}
+
+/** Detect language from browser navigator.language */
+export function detectBrowserLang(): Lang {
+  if (typeof navigator === "undefined") return defaultLang;
+  const browserLang = navigator.language || (navigator as any).userLanguage || "";
+  const prefix = browserLang.split("-")[0].toLowerCase();
+  if (prefix in languages) return prefix as Lang;
+  return defaultLang;
+}
+
+/** Get current lang from localStorage, falling back to browser detection */
+export function getClientLang(): Lang {
+  if (typeof window === "undefined") return defaultLang;
+  const saved = localStorage.getItem("lang") as Lang | null;
+  if (saved && saved in languages) return saved;
+  return detectBrowserLang();
+}

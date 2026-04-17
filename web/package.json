@@ -1,0 +1,43 @@
+{
+  "name": "web",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "lint": "eslint \"src/**/*.{ts,tsx,astro}\"",
+    "lint:fix": "eslint --fix \"src/**/*.{ts,tsx,astro}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,astro,json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,astro,json,md}\""
+  },
+  "dependencies": {
+    "@astrojs/react": "^4.4.2",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource/geist-mono": "^5.2.7",
+    "@fontsource/newsreader": "^5.2.10",
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/react": "^19.2.13",
+    "@types/react-dom": "^19.2.3",
+    "astro": "^5.17.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.563.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwind-merge": "^3.4.0",
+    "tailwindcss": "^4.1.18"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "astro-eslint-parser": "^1.4.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-astro": "^1.7.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.0",
+    "prettier": "^3.8.3",
+    "prettier-plugin-astro": "^0.14.1",
+    "typescript-eslint": "^8.58.2"
+  }
+}

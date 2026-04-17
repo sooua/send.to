@@ -1,0 +1,64 @@
+# Version control / CI
+.git
+.gitignore
+.github
+.gitlab-ci.yml
+
+# IDE / editor
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local dev / infra not needed in the build context
+Vagrantfile
+.vagrant
+docker-compose.yml
+railway.json
+.pre-commit-config.yaml
+.golangci.yml
+Dockerfile.dockerignore
+
+# Test output, coverage and build artifacts
+*.test
+*.out
+coverage.*
+/send.to
+/sendto
+build
+bin
+pkg
+.tmp
+
+# Secrets & local config
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# Frontend artifacts that should be rebuilt inside the image; source stays.
+web/node_modules
+web/dist
+web/.astro
+bower_components
+node_modules
+
+# Documentation / licenses that don't need to be in the image layer
+LICENSE
+README.md
+docs
+design-system
+extras
+*.md
+
+# Logs
+*.log
+logs
+
+# Python caches (in case ancillary scripts exist)
+*.pyc
+*.egg-info
+__pycache__

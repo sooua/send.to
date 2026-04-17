@@ -1,0 +1,309 @@
+@import "tailwindcss";
+
+/* ---- Fonts ---- */
+@import "@fontsource/newsreader/400.css";
+@import "@fontsource/newsreader/500.css";
+@import "@fontsource/newsreader/600.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource/geist-mono/400.css";
+@import "@fontsource/geist-mono/500.css";
+
+@source "../**/*.astro";
+@source "../**/*.tsx";
+@source "../**/*.ts";
+
+/* ==============================================================
+   Claude-inspired warm editorial design tokens
+   - Parchment canvas, warm neutrals, terracotta brand
+   - Anthropic Serif (Newsreader stand-in) for headlines
+   - Anthropic Sans (Inter) for UI + body
+   - Ring-based shadows, generous rounding, editorial pacing
+   ============================================================== */
+@theme {
+  --font-sans:
+    "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif:
+    "Newsreader", Georgia, "Times New Roman", serif;
+  --font-mono:
+    "Geist Mono", ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, monospace;
+
+  /* Surfaces — all warm, yellow-brown undertones */
+  --color-background: #f5f4ed;           /* Parchment — page canvas */
+  --color-surface: #faf9f5;              /* Ivory — elevated cards */
+  --color-surface-light: #ffffff;        /* Pure white — max contrast cards */
+  --color-sand: #e8e6dc;                 /* Warm Sand — button surface */
+
+  /* Text */
+  --color-primary: #141413;              /* Near-black, olive-warm */
+  --color-muted: #5e5d59;                /* Olive Gray — body secondary */
+  --color-muted-dark: #87867f;           /* Stone Gray — tertiary/meta */
+  --color-accent: #3d3d3a;               /* Dark Warm — emphasized links */
+
+  /* Brand */
+  --color-brand: #c96442;                /* Terracotta — primary CTA */
+  --color-brand-light: #d97757;          /* Coral — hover / dark-surface links */
+
+  /* Borders — cream-tinted, barely visible */
+  --color-border: #f0eee6;               /* Border Cream */
+  --color-border-light: #e8e6dc;         /* Border Warm — emphasized */
+
+  /* Dark-chapter palette */
+  --color-dark: #141413;                 /* Deep Dark — dark sections */
+  --color-dark-surface: #30302e;         /* Dark Surface — cards on dark */
+  --color-dark-muted: #b0aea5;           /* Warm Silver — text on dark */
+
+  /* Semantic */
+  --color-danger: #b53333;               /* Error Crimson */
+  --color-success: #5a8a4a;              /* Warm muted green */
+  --color-focus: #3898ec;                /* Focus ring — only cool color */
+
+  /* Code */
+  --color-codeblock: #141413;
+  --color-code-text: #faf9f5;
+  --color-code-comment: #87867f;
+  --color-code-string: #d97757;
+  --color-code-prompt: #b0aea5;
+}
+
+/* ==============================================================
+   Base
+   ============================================================== */
+html {
+  background-color: var(--color-background);
+  color: var(--color-primary);
+  font-family: var(--font-sans);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* Serif display */
+.font-display,
+.font-serif {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: normal;
+}
+
+/* Compat: old xAI utility. Kept so secondary pages still render — now
+   maps to a subtle section-label style in the warm palette. */
+.font-mono-track {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-brand);
+}
+
+/* ==============================================================
+   Button system
+   - Ring shadow for warm halos (no drop shadows on ghost/sand)
+   - Rounded corners 8-12px; never sharp
+   ============================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+  transition:
+    background-color 160ms ease-out,
+    box-shadow 160ms ease-out,
+    transform 80ms ease-out;
+  cursor: pointer;
+  user-select: none;
+}
+.btn:active {
+  transform: translateY(0.5px);
+}
+
+/* Primary — Terracotta */
+.btn-primary {
+  background: var(--color-brand);
+  color: var(--color-surface);
+  box-shadow: 0 2px 12px rgba(201, 100, 66, 0.15);
+}
+.btn-primary:hover {
+  background: #b85838;
+  box-shadow: 0 4px 18px rgba(201, 100, 66, 0.22);
+}
+
+/* Ghost — white on parchment */
+.btn-ghost {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-border-light);
+}
+.btn-ghost:hover {
+  box-shadow: 0 0 0 1px #d1cfc5;
+  background: #ffffff;
+}
+
+/* Sand — low-emphasis */
+.btn-sand {
+  background: var(--color-sand);
+  color: #4d4c48;
+  box-shadow: 0 0 0 1px #d1cfc5;
+}
+.btn-sand:hover {
+  background: #dcd9cc;
+}
+
+/* Dark — for dark sections */
+.btn-dark {
+  background: var(--color-dark);
+  color: var(--color-surface);
+  box-shadow: 0 0 0 1px var(--color-dark-surface);
+}
+.btn-dark:hover {
+  background: #202020;
+}
+
+/* Compact size */
+.btn-sm {
+  padding: 10px 18px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+
+/* ==============================================================
+   Cards
+   ============================================================== */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  transition: box-shadow 180ms ease-out, transform 180ms ease-out;
+}
+.card:hover {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+}
+
+.card-dark {
+  background: var(--color-dark-surface);
+  border: 1px solid var(--color-dark-surface);
+  border-radius: 16px;
+  color: var(--color-surface);
+}
+
+/* Pill / tag — warm ivory with border */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+/* Inline code */
+.inline-code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  padding: 2px 6px;
+  background: var(--color-sand);
+  border-radius: 6px;
+  color: var(--color-accent);
+}
+
+/* ==============================================================
+   Code block (dark chapter surface)
+   ============================================================== */
+.code-block {
+  background: var(--color-dark-surface);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.code-block pre {
+  color: var(--color-code-text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+.code-block .code-comment { color: var(--color-code-comment); }
+.code-block .code-string  { color: var(--color-code-string); }
+.code-block .code-prompt  { color: var(--color-code-prompt); }
+
+/* ==============================================================
+   Scrollbars — warm, unobtrusive
+   ============================================================== */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--color-background); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-light);
+  border-radius: 999px;
+  border: 2px solid var(--color-background);
+}
+::-webkit-scrollbar-thumb:hover { background: #d1cfc5; }
+
+/* Selection */
+::selection {
+  background-color: rgba(201, 100, 66, 0.25);
+  color: var(--color-primary);
+}
+
+/* Focus ring — the only cool accent */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ==============================================================
+   Scroll-reveal
+   ============================================================== */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes progress-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+.animate-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.stagger-1 { transition-delay: 40ms; }
+.stagger-2 { transition-delay: 80ms; }
+.stagger-3 { transition-delay: 120ms; }
+.stagger-4 { transition-delay: 160ms; }
+.stagger-5 { transition-delay: 200ms; }
+.stagger-6 { transition-delay: 240ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .animate-on-scroll { opacity: 1 !important; transform: none !important; }
+}

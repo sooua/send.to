@@ -1,0 +1,220 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import CodeBlock from "../components/CodeBlock.astro";
+---
+
+<BaseLayout title="About — send.to">
+  <!-- Page header -->
+  <section class="border-b border-border bg-background">
+    <div class="mx-auto max-w-5xl px-6 py-20 text-center sm:py-28">
+      <p class="mb-4 text-[13px] font-medium uppercase tracking-wide text-[#c96442]">About</p>
+      <h1 class="font-serif text-[48px] font-medium leading-tight text-primary sm:text-[64px]" data-i18n="about.title">
+        A calmer way<br />to share files.
+      </h1>
+      <p class="mx-auto mt-6 max-w-2xl text-[18px] leading-relaxed text-muted" data-i18n="about.subtitle">
+        send.to is an open-source file sharing service that makes it easy to share files from the command line.
+      </p>
+    </div>
+  </section>
+
+  <!-- What is send.to -->
+  <section class="border-b border-border">
+    <div class="mx-auto max-w-7xl px-6 py-16">
+      <div class="grid gap-12 lg:grid-cols-3">
+        <div class="font-mono-track text-xs text-muted-dark">[01] OVERVIEW</div>
+        <div class="lg:col-span-2">
+          <h2 class="mb-6 text-2xl text-primary" data-i18n="about.whatIs">What is send.to?</h2>
+          <p class="text-base leading-relaxed text-muted" data-i18n="about.whatIsDesc">
+            send.to is a lightweight, self-hosted file sharing service built with Go. It compiles
+            to a single static binary with zero external dependencies, making it trivial to deploy.
+            Upload files via curl or the web interface, get a shareable link, and files auto-expire
+            based on your configuration.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="border-b border-border">
+    <div class="mx-auto max-w-7xl px-6 py-16">
+      <div class="grid gap-12 lg:grid-cols-3">
+        <div class="font-mono-track text-xs text-muted-dark">[02] FEATURES</div>
+        <div class="lg:col-span-2 space-y-12">
+          <div>
+            <h3 class="font-mono-track mb-6 text-xs text-primary" data-i18n="about.featureTransfer">
+              FILE TRANSFER
+            </h3>
+            <ul class="space-y-3 border-t border-border">
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.shareUrl">Share files with a URL</li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.maxDownloads">Set maximum download count per file</li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.multiUpload">Upload multiple files at once</li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.resumable">Resumable downloads via HTTP Range requests</li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.expiration">Auto-expiration with configurable TTL and purge interval</li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.deleteToken">Delete files with a unique deletion token</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 class="font-mono-track mb-6 text-xs text-primary" data-i18n="about.featureSecurity">
+              SECURITY
+            </h3>
+            <ul class="space-y-3 border-t border-border">
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.encryption">Server-side OpenPGP AES-256 encryption via headers</li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.gpgOpenssl">Client-side encryption with GPG or OpenSSL</li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.virusScan">Virus scanning with ClamAV and VirusTotal</li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.auth">HTTP Basic Auth, htpasswd, and IP whitelist/blacklist</li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.tls">Automatic TLS via Let's Encrypt</li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.rateLimit">Per-IP rate limiting</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 class="font-mono-track mb-6 text-xs text-primary" data-i18n="about.featurePreview">
+              PREVIEW &amp; CLIENTS
+            </h3>
+            <ul class="space-y-3 border-t border-border">
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.preview">File preview for images, video, audio, and Markdown</li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.altClients">Works with curl, wget, HTTPie, and PowerShell</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 class="font-mono-track mb-6 text-xs text-primary" data-i18n="about.featureInfra">
+              INFRASTRUCTURE
+            </h3>
+            <ul class="space-y-3 border-t border-border">
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.storage">Multiple storage backends: local, S3, Google Drive, Storj</li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.selfHosted">Single binary deployment with Docker support</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Self-hosting -->
+  <section class="border-b border-border">
+    <div class="mx-auto max-w-7xl px-6 py-16">
+      <div class="grid gap-12 lg:grid-cols-3">
+        <div class="font-mono-track text-xs text-muted-dark">[03] SELF-HOSTING</div>
+        <div class="lg:col-span-2">
+          <h2 class="mb-4 text-2xl text-primary" data-i18n="about.selfHosting">Self-hosting</h2>
+          <p class="mb-8 text-sm leading-relaxed text-muted" data-i18n="about.selfHostingDesc">
+            Deploy your own instance with Docker in seconds:
+          </p>
+
+          <div class="space-y-4">
+            <CodeBlock
+              title="docker run"
+              titleKey="code.dockerRun"
+              code={`<span class="code-prompt">$</span> docker run -p 8080:8080 \\
+    -v /tmp/send.to:/data \\
+    iuumua/sendto \\
+    --provider local --basedir /data`}
+            />
+
+            <CodeBlock
+              title="docker run with S3"
+              titleKey="code.dockerRunS3"
+              code={`<span class="code-prompt">$</span> docker run -p 8080:8080 \\
+    -e AWS_ACCESS_KEY=your-key \\
+    -e AWS_SECRET_KEY=your-secret \\
+    iuumua/sendto \\
+    --provider s3 --bucket my-bucket`}
+            />
+
+            <CodeBlock
+              title="with encryption & limits"
+              titleKey="code.dockerAdvanced"
+              code={`<span class="code-prompt">$</span> docker run -p 8080:8080 \\
+    iuumua/sendto \\
+    --provider local --basedir /data \\
+    --max-upload-size 5242880 \\
+    --purge-days 14 --purge-interval 1 \\
+    --rate-limit 60`}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech Stack -->
+  <section class="border-b border-border">
+    <div class="mx-auto max-w-7xl px-6 py-16">
+      <div class="grid gap-12 lg:grid-cols-3">
+        <div class="font-mono-track text-xs text-muted-dark">[04] STACK</div>
+        <div class="lg:col-span-2">
+          <h2 class="mb-8 text-2xl text-primary" data-i18n="about.techStack">Tech Stack</h2>
+          <dl class="grid grid-cols-1 gap-px bg-border sm:grid-cols-2">
+            <div class="bg-background p-6">
+              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.language">LANGUAGE</dt>
+              <dd class="text-sm text-primary">Go 1.25+</dd>
+            </div>
+            <div class="bg-background p-6">
+              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.router">ROUTER</dt>
+              <dd class="text-sm text-primary">gorilla/mux</dd>
+            </div>
+            <div class="bg-background p-6">
+              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.encryption">ENCRYPTION</dt>
+              <dd class="text-sm text-primary">OpenPGP AES-256</dd>
+            </div>
+            <div class="bg-background p-6">
+              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.deployment">DEPLOYMENT</dt>
+              <dd class="text-sm text-primary">Single binary / Docker</dd>
+            </div>
+            <div class="bg-background p-6">
+              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.storage">STORAGE</dt>
+              <dd class="text-sm text-primary">Local · S3 · Google Drive · Storj</dd>
+            </div>
+            <div class="bg-background p-6">
+              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.frontend">FRONTEND</dt>
+              <dd class="text-sm text-primary">Astro 5 · React 19 · Tailwind 4</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Links -->
+  <section>
+    <div class="mx-auto max-w-7xl px-6 py-16">
+      <div class="grid gap-12 lg:grid-cols-3">
+        <div class="font-mono-track text-xs text-muted-dark">[05] LINKS</div>
+        <div class="lg:col-span-2">
+          <div class="flex flex-wrap gap-4">
+            <a
+              href="https://github.com/sooua/send.to"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="xai-btn xai-btn-ghost"
+              data-i18n="about.github"
+            >
+              GITHUB
+            </a>
+            <a
+              href="https://github.com/sooua/send.to/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="xai-btn xai-btn-ghost"
+              data-i18n="about.issues"
+            >
+              ISSUES
+            </a>
+            <a
+              href="https://github.com/sooua/send.to/blob/main/LICENSE"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="xai-btn xai-btn-ghost"
+              data-i18n="footer.license"
+            >
+              MIT LICENSE
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

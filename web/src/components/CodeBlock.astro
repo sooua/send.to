@@ -1,0 +1,105 @@
+---
+interface Props {
+  title?: string;
+  titleKey?: string;
+  code?: string;
+}
+
+const { title = "terminal", titleKey, code } = Astro.props;
+---
+
+<div class="code-block group relative">
+  <div class="flex items-center justify-between border-b border-white/10 px-5 py-3">
+    <div class="flex items-center gap-3">
+      <span class="h-2 w-2 rounded-full bg-white/30"></span>
+      <span class="text-[13px] font-medium text-[#b0aea5]" {...titleKey ? { "data-i18n": titleKey } : {}}>
+        {title}
+      </span>
+    </div>
+    <button
+      class="copy-btn flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] text-[#b0aea5] opacity-0 transition-all hover:bg-white/10 hover:text-white group-hover:opacity-100"
+      data-i18n="code.copy"
+    >
+      <svg class="copy-icon h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+      <svg class="check-icon hidden h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+      <span class="copy-label">Copy</span>
+    </button>
+  </div>
+  <div class="overflow-x-auto p-5">
+    <pre class="font-sans text-[14px] leading-relaxed">{code ? <Fragment set:html={code} /> : <slot />}</pre>
+  </div>
+</div>
+
+<script>
+  function initCopyButtons() {
+    document.querySelectorAll<HTMLButtonElement>(".copy-btn").forEach((btn) => {
+      if (btn.dataset.copyInit) return;
+      btn.dataset.copyInit = "true";
+      btn.addEventListener("click", async () => {
+        const block = btn.closest(".code-block");
+        if (!block) return;
+        const pre = block.querySelector("pre");
+        if (!pre) return;
+
+        const raw = pre.textContent?.trim() ?? "";
+        const text = raw
+          .split("\n")
+          .map((line) => line.replace(/^\$\s?/, "").replace(/^PS>\s?/, ""))
+          .join("\n");
+
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          try {
+            document.execCommand("copy");
+          } catch (_) {
+            // ignore
+          }
+          document.body.removeChild(ta);
+        }
+
+        const copyIcon = btn.querySelector(".copy-icon") as HTMLElement;
+        const checkIcon = btn.querySelector(".check-icon") as HTMLElement;
+        const label = btn.querySelector(".copy-label") as HTMLElement;
+
+        copyIcon.classList.add("hidden");
+        checkIcon.classList.remove("hidden");
+
+        const lang = (window as any).__LANG__ || localStorage.getItem("lang") || "en";
+        const copiedText: Record<string, string> = {
+          en: "Copied",
+          zh: "已复制",
+          ja: "コピー済",
+        };
+        label.textContent = copiedText[lang] || "Copied";
+
+        setTimeout(() => {
+          copyIcon.classList.remove("hidden");
+          checkIcon.classList.add("hidden");
+          const copyText: Record<string, string> = { en: "Copy", zh: "复制", ja: "コピー" };
+          label.textContent = copyText[lang] || "Copy";
+        }, 2000);
+      });
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initCopyButtons);
+  } else {
+    initCopyButtons();
+  }
+  document.addEventListener("astro:page-load", initCopyButtons);
+</script>
