@@ -21,11 +21,9 @@ export const translations: Record<Lang, Record<string, string>> = {
       "Easy and fast file sharing from the command line. Upload files and get a shareable link instantly.",
     // Upload
     "upload.dropzone": "Drop a file here or",
-    "upload.browse": "browse",
     "upload.hint": "Files are encrypted in transit and auto-expire",
     "upload.uploading": "Uploading...",
     "upload.complete": "Upload complete",
-    "upload.failed": "Upload failed",
     "upload.another": "Upload another file",
     "upload.shareLink": "Share link",
     "upload.downloadCmd": "Download with curl",
@@ -75,7 +73,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     "cli.title": "Your terminal is the UI.",
     "cli.subtitle":
       "Works with curl, wget, HTTPie, PowerShell — anything that speaks HTTP. Headers do all the work.",
-    "cli.divider": "or use the command line",
     // How it works (flow)
     "flow.label": "Three steps",
     "flow.title": "That's the whole API.",
@@ -97,13 +94,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     "finalcta.meta": "Open source · MIT · no tracking · 52 MB image",
     // Features (index page cards)
     "feature.encryption": "End-to-end encryption",
-    "feature.encryptionDesc": "Encrypt files with a password before upload using OpenPGP AES-256.",
     "feature.expiration": "Auto-expiration",
-    "feature.expirationDesc":
-      "Set download limits and expiration dates. Files are automatically purged.",
     "feature.selfHosted": "Self-hosted",
-    "feature.selfHostedDesc":
-      "Deploy your own instance with Docker. Single binary, zero external dependencies.",
     // About page category headings
     "about.featureTransfer": "File Transfer",
     "about.featureSecurity": "Security",
@@ -111,26 +103,18 @@ export const translations: Record<Lang, Record<string, string>> = {
     "about.featureInfra": "Infrastructure",
     // Features (about page list)
     "feature.shareUrl": "Share files with a URL",
-    "feature.unlimitedUpload": "Unlimited uploads",
     "feature.maxDownloads": "Set maximum download count per file",
     "feature.multiUpload": "Upload multiple files at once",
-    "feature.archiveDownload": "Combine downloads as ZIP, TAR, or TAR.GZ archive",
     "feature.resumable": "Resumable downloads via HTTP Range requests",
     "feature.deleteToken": "Delete files with a unique deletion token",
     "feature.storage": "Multiple storage backends: local, S3, Google Drive, Storj",
-    "feature.s3Compat": "S3-compatible storage (Minio, DigitalOcean Spaces, etc.)",
     "feature.virusScan": "Virus scanning with ClamAV and VirusTotal",
     "feature.auth": "HTTP Basic Auth, htpasswd, and IP whitelist/blacklist",
     "feature.tls": "Automatic TLS via Let's Encrypt",
     "feature.rateLimit": "Per-IP rate limiting",
     "feature.preview": "File preview for images, video, audio, and Markdown",
-    "feature.qrCode": "QR code generation for download links",
     "feature.altClients": "Works with curl, wget, HTTPie, and PowerShell",
     "feature.gpgOpenssl": "Client-side encryption with GPG or OpenSSL",
-    "feature.keybase": "Keybase.io integration for recipient-specific encryption",
-    "feature.proxy": "Reverse proxy support with configurable path prefix and port",
-    "feature.cors": "CORS support for cross-origin requests",
-    "feature.profiler": "Built-in Go profiler for performance monitoring",
     // Footer
     "footer.license": "MIT License",
     // 404
@@ -145,11 +129,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     "about.whatIs": "What is send.to?",
     "about.whatIsDesc":
       "send.to is a lightweight, self-hosted file sharing service built with Go. It compiles to a single static binary with zero external dependencies, making it trivial to deploy. Upload files via curl or the web interface, get a shareable link, and files auto-expire based on your configuration.",
-    "about.features": "Features",
     "about.selfHosting": "Self-hosting",
     "about.selfHostingDesc": "Deploy your own instance with Docker in seconds:",
     "about.techStack": "Tech Stack",
-    "about.links": "Links",
     "about.github": "GitHub Repository",
     "about.issues": "Report an Issue",
     // Tech Stack labels
@@ -192,7 +174,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     "api.errorsDesc": "Common HTTP status codes returned by the API.",
     // Code block titles
     "code.copy": "Copy",
-    "code.copied": "Copied!",
     "code.uploadFile": "upload a file",
     "code.encryptUpload": "encrypt & upload",
     "code.setLimits": "set limits",
@@ -221,11 +202,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     "usecase.title": "Use Cases",
     "usecase.subtitle":
       "Real-world examples of how to use send.to with curl, GPG, OpenSSL, and other tools.",
-    "usecase.divider": "use cases",
-    "usecase.viewAll": "View all use cases →",
-    "usecase.gpgEncryptShort": "Pipe through gpg for end-to-end encryption with your own keys.",
-    "usecase.dbBackupShort": "Backup, compress, encrypt, and transfer databases in one pipeline.",
-    "usecase.malwareScanShort": "Scan files with ClamAV or VirusTotal before sharing.",
     "usecase.multiUpload": "Upload Multiple Files",
     "usecase.multiUploadDesc":
       "Upload multiple files at once using multipart form data. Combine downloads as ZIP or TAR archives.",
@@ -272,25 +248,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     "code.comment.opensslDecrypt": "# download and decrypt",
     "code.comment.pipeLogs": "# grep syslog and transfer",
     // Q&A
-    "qa.divider": "questions & answers",
-    "qa.q1": "How do I upload a file?",
-    "qa.a1":
-      "Use curl to upload: curl --upload-file ./file.txt https://send.to/file.txt. You can also drag and drop files using the upload zone above.",
-    "qa.q2": "How long are files stored?",
-    "qa.a2":
-      "By default, files expire based on the server configuration. You can set a custom expiration with the Max-Days header, and limit downloads with Max-Downloads.",
-    "qa.q3": "Is my data encrypted?",
-    "qa.a3":
-      "Files are encrypted in transit via HTTPS. For server-side encryption, add the X-Encrypt-Password header to encrypt with OpenPGP AES-256. You can also encrypt client-side with GPG or OpenSSL before uploading.",
-    "qa.q4": "Can I delete a file after uploading?",
-    "qa.a4":
-      "Yes. Every upload returns a deletion URL in the X-Url-Delete response header. Use it with a DELETE request to remove the file immediately.",
-    "qa.q5": "Can I self-host send.to?",
-    "qa.a5":
-      "Yes. send.to compiles to a single static binary with zero dependencies. Run it with Docker or directly on your server. It supports local storage, S3, Google Drive, and Storj as backends.",
-    "qa.q6": "What is the maximum file size?",
-    "qa.a6":
-      "The maximum file size is configured by the server administrator using the --max-upload-size flag. There is no hard-coded limit in the application itself.",
   },
   zh: {
     // Navbar
@@ -303,11 +260,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     "hero.subtitle": "从命令行轻松快速地分享文件。上传文件，即刻获取分享链接。",
     // Upload
     "upload.dropzone": "拖拽文件到此处或",
-    "upload.browse": "选择文件",
     "upload.hint": "文件在传输中加密，并自动过期",
     "upload.uploading": "上传中...",
     "upload.complete": "上传完成",
-    "upload.failed": "上传失败",
     "upload.another": "上传更多文件",
     "upload.shareLink": "分享链接",
     "upload.downloadCmd": "curl 下载命令",
@@ -356,7 +311,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     "cli.label": "面向命令行",
     "cli.title": "终端就是你的 UI。",
     "cli.subtitle": "兼容 curl、wget、HTTPie、PowerShell —— 任何支持 HTTP 的客户端。所有配置通过请求头完成。",
-    "cli.divider": "或使用命令行",
     // How it works (flow)
     "flow.label": "三步走",
     "flow.title": "整个 API 就这么简单。",
@@ -377,11 +331,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     "finalcta.meta": "开源 · MIT · 无追踪 · 镜像 52 MB",
     // Features (index page cards)
     "feature.encryption": "端到端加密",
-    "feature.encryptionDesc": "使用 OpenPGP AES-256 在上传前加密文件。",
     "feature.expiration": "自动过期",
-    "feature.expirationDesc": "设置下载次数限制和过期时间，文件自动清理。",
     "feature.selfHosted": "自托管",
-    "feature.selfHostedDesc": "使用 Docker 部署你自己的实例。单一二进制，零外部依赖。",
     // About page category headings
     "about.featureTransfer": "文件传输",
     "about.featureSecurity": "安全",
@@ -389,26 +340,18 @@ export const translations: Record<Lang, Record<string, string>> = {
     "about.featureInfra": "基础设施",
     // Features (about page list)
     "feature.shareUrl": "通过 URL 分享文件",
-    "feature.unlimitedUpload": "无限上传",
     "feature.maxDownloads": "可设置每个文件的最大下载次数",
     "feature.multiUpload": "一次上传多个文件",
-    "feature.archiveDownload": "合并下载为 ZIP、TAR 或 TAR.GZ 归档",
     "feature.resumable": "通过 HTTP Range 请求实现断点续传",
     "feature.deleteToken": "使用唯一删除令牌删除文件",
     "feature.storage": "多种存储后端：本地、S3、Google Drive、Storj",
-    "feature.s3Compat": "兼容 S3 的存储（Minio、DigitalOcean Spaces 等）",
     "feature.virusScan": "病毒扫描：支持 ClamAV 和 VirusTotal",
     "feature.auth": "HTTP Basic Auth、htpasswd 和 IP 黑白名单",
     "feature.tls": "通过 Let's Encrypt 自动配置 TLS",
     "feature.rateLimit": "按 IP 限流",
     "feature.preview": "文件预览：支持图片、视频、音频和 Markdown",
-    "feature.qrCode": "下载链接二维码生成",
     "feature.altClients": "支持 curl、wget、HTTPie 和 PowerShell",
     "feature.gpgOpenssl": "客户端使用 GPG 或 OpenSSL 加密",
-    "feature.keybase": "Keybase.io 集成，支持指定接收者加密",
-    "feature.proxy": "反向代理支持，可配置路径前缀和端口",
-    "feature.cors": "CORS 跨域请求支持",
-    "feature.profiler": "内置 Go 性能分析器",
     // Footer
     "footer.license": "MIT 许可证",
     // 404
@@ -421,11 +364,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     "about.whatIs": "什么是 send.to？",
     "about.whatIsDesc":
       "send.to 是一个用 Go 构建的轻量级自托管文件分享服务。它编译为单一静态二进制文件，零外部依赖，部署极其简单。通过 curl 或 Web 界面上传文件，获取分享链接，文件根据配置自动过期。",
-    "about.features": "功能特性",
     "about.selfHosting": "自托管部署",
     "about.selfHostingDesc": "使用 Docker 秒级部署你自己的实例：",
     "about.techStack": "技术栈",
-    "about.links": "链接",
     "about.github": "GitHub 仓库",
     "about.issues": "报告问题",
     // Tech Stack labels
@@ -465,7 +406,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     "api.errorsDesc": "API 返回的常见 HTTP 状态码。",
     // Code block titles
     "code.copy": "复制",
-    "code.copied": "已复制！",
     "code.uploadFile": "上传文件",
     "code.encryptUpload": "加密上传",
     "code.setLimits": "设置限制",
@@ -493,11 +433,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     // Use cases
     "usecase.title": "使用场景",
     "usecase.subtitle": "使用 curl、GPG、OpenSSL 和其他工具操作 send.to 的实际示例。",
-    "usecase.divider": "使用场景",
-    "usecase.viewAll": "查看所有使用场景 →",
-    "usecase.gpgEncryptShort": "通过 gpg 管道实现端到端加密，使用你自己的密钥。",
-    "usecase.dbBackupShort": "一条管道完成数据库备份、压缩、加密和传输。",
-    "usecase.malwareScanShort": "分享前使用 ClamAV 或 VirusTotal 扫描文件。",
     "usecase.multiUpload": "一次上传多个文件",
     "usecase.multiUploadDesc":
       "使用 multipart 表单数据一次上传多个文件。合并下载为 ZIP 或 TAR 归档。",
@@ -541,24 +476,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     "code.comment.opensslDecrypt": "# 下载并解密",
     "code.comment.pipeLogs": "# 过滤 syslog 并传输",
     // Q&A
-    "qa.divider": "常见问题",
-    "qa.q1": "如何上传文件？",
-    "qa.a1":
-      "使用 curl 上传：curl --upload-file ./file.txt https://send.to/file.txt。也可以通过上方的上传区域拖拽文件上传。",
-    "qa.q2": "文件会保存多久？",
-    "qa.a2":
-      "默认情况下，文件根据服务器配置自动过期。你可以通过 Max-Days 头设置自定义过期时间，通过 Max-Downloads 限制下载次数。",
-    "qa.q3": "我的数据是否加密？",
-    "qa.a3":
-      "文件通过 HTTPS 在传输中加密。如需服务端加密，添加 X-Encrypt-Password 头即可使用 OpenPGP AES-256 加密。你也可以在上传前使用 GPG 或 OpenSSL 进行客户端加密。",
-    "qa.q4": "上传后可以删除文件吗？",
-    "qa.a4":
-      "可以。每次上传都会在 X-Url-Delete 响应头中返回删除 URL。使用 DELETE 请求即可立即删除文件。",
-    "qa.q5": "可以自托管 send.to 吗？",
-    "qa.a5":
-      "可以。send.to 编译为单一静态二进制文件，零依赖。可以使用 Docker 或直接在服务器上运行。支持本地存储、S3、Google Drive 和 Storj 作为后端。",
-    "qa.q6": "最大文件大小是多少？",
-    "qa.a6": "最大文件大小由服务器管理员通过 --max-upload-size 参数配置。应用本身没有硬编码限制。",
   },
   ja: {
     // Navbar
@@ -572,11 +489,9 @@ export const translations: Record<Lang, Record<string, string>> = {
       "コマンドラインから簡単・高速にファイルを共有。アップロードして、共有リンクを即座に取得。",
     // Upload
     "upload.dropzone": "ファイルをここにドロップまたは",
-    "upload.browse": "参照",
     "upload.hint": "ファイルは転送中に暗号化され、自動的に期限切れになります",
     "upload.uploading": "アップロード中...",
     "upload.complete": "アップロード完了",
-    "upload.failed": "アップロード失敗",
     "upload.another": "別のファイルをアップロード",
     "upload.shareLink": "共有リンク",
     "upload.downloadCmd": "curlでダウンロード",
@@ -626,7 +541,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     "cli.title": "ターミナルが UI です。",
     "cli.subtitle":
       "curl、wget、HTTPie、PowerShell 何でも OK。HTTP が話せるクライアントなら動きます。設定はすべてヘッダーで。",
-    "cli.divider": "またはコマンドラインを使用",
     // How it works (flow)
     "flow.label": "3 ステップ",
     "flow.title": "API はこれだけ。",
@@ -648,12 +562,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     "finalcta.meta": "オープンソース · MIT · トラッキングなし · イメージ 52 MB",
     // Features (index page cards)
     "feature.encryption": "エンドツーエンド暗号化",
-    "feature.encryptionDesc": "OpenPGP AES-256でアップロード前にファイルを暗号化。",
     "feature.expiration": "自動期限切れ",
-    "feature.expirationDesc":
-      "ダウンロード回数制限と有効期限を設定。ファイルは自動的に削除されます。",
     "feature.selfHosted": "セルフホスト",
-    "feature.selfHostedDesc": "Dockerで独自インスタンスをデプロイ。単一バイナリ、外部依存ゼロ。",
     // About page category headings
     "about.featureTransfer": "ファイル転送",
     "about.featureSecurity": "セキュリティ",
@@ -661,26 +571,18 @@ export const translations: Record<Lang, Record<string, string>> = {
     "about.featureInfra": "インフラストラクチャ",
     // Features (about page list)
     "feature.shareUrl": "URLでファイルを共有",
-    "feature.unlimitedUpload": "無制限アップロード",
     "feature.maxDownloads": "ファイルごとの最大ダウンロード回数設定",
     "feature.multiUpload": "複数ファイルの一括アップロード",
-    "feature.archiveDownload": "ZIP、TAR、TAR.GZ アーカイブとしてまとめてダウンロード",
     "feature.resumable": "HTTP Range リクエストによるレジューム可能なダウンロード",
     "feature.deleteToken": "一意の削除トークンでファイルを削除",
     "feature.storage": "複数のストレージバックエンド：ローカル、S3、Google Drive、Storj",
-    "feature.s3Compat": "S3 互換ストレージ（Minio、DigitalOcean Spaces など）",
     "feature.virusScan": "ClamAV と VirusTotal によるウイルススキャン",
     "feature.auth": "HTTP Basic Auth、htpasswd、IP ホワイトリスト/ブラックリスト",
     "feature.tls": "Let's Encrypt による自動 TLS",
     "feature.rateLimit": "IP ごとのレート制限",
     "feature.preview": "画像、動画、音声、Markdown のファイルプレビュー",
-    "feature.qrCode": "ダウンロードリンクの QR コード生成",
     "feature.altClients": "curl、wget、HTTPie、PowerShell に対応",
     "feature.gpgOpenssl": "クライアント側で GPG または OpenSSL による暗号化",
-    "feature.keybase": "Keybase.io 連携で受信者指定の暗号化",
-    "feature.proxy": "リバースプロキシ対応（パスプレフィックスとポート設定可能）",
-    "feature.cors": "クロスオリジンリクエストの CORS サポート",
-    "feature.profiler": "パフォーマンス監視用の組み込み Go プロファイラー",
     // Footer
     "footer.license": "MITライセンス",
     // 404
@@ -695,11 +597,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     "about.whatIs": "send.to とは？",
     "about.whatIsDesc":
       "send.to は Go で構築された軽量なセルフホスト型ファイル共有サービスです。外部依存ゼロの単一静的バイナリにコンパイルされ、デプロイが非常に簡単です。curl または Web インターフェースでファイルをアップロードし、共有リンクを取得。ファイルは設定に基づいて自動的に期限切れになります。",
-    "about.features": "機能",
     "about.selfHosting": "セルフホスティング",
     "about.selfHostingDesc": "Dockerで数秒でデプロイ：",
     "about.techStack": "技術スタック",
-    "about.links": "リンク",
     "about.github": "GitHubリポジトリ",
     "about.issues": "問題を報告",
     // Tech Stack labels
@@ -742,7 +642,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     "api.errorsDesc": "API が返す一般的な HTTP ステータスコード。",
     // Code block titles
     "code.copy": "コピー",
-    "code.copied": "コピー済み！",
     "code.uploadFile": "ファイルをアップロード",
     "code.encryptUpload": "暗号化してアップロード",
     "code.setLimits": "制限を設定",
@@ -770,11 +669,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     // Use cases
     "usecase.title": "ユースケース",
     "usecase.subtitle": "curl、GPG、OpenSSL、その他のツールで send.to を使用する実際の例。",
-    "usecase.divider": "ユースケース",
-    "usecase.viewAll": "すべてのユースケースを見る →",
-    "usecase.gpgEncryptShort": "gpg パイプで自分の鍵を使ったエンドツーエンド暗号化。",
-    "usecase.dbBackupShort": "一つのパイプラインでデータベースのバックアップ、圧縮、暗号化、転送。",
-    "usecase.malwareScanShort": "共有前に ClamAV または VirusTotal でファイルをスキャン。",
     "usecase.multiUpload": "複数ファイルの一括アップロード",
     "usecase.multiUploadDesc":
       "マルチパートフォームデータで複数ファイルを一度にアップロード。ZIPやTARアーカイブとしてまとめてダウンロード。",
@@ -820,25 +714,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     "code.comment.opensslDecrypt": "# ダウンロードして復号",
     "code.comment.pipeLogs": "# syslog をフィルタして転送",
     // Q&A
-    "qa.divider": "よくある質問",
-    "qa.q1": "ファイルをアップロードするには？",
-    "qa.a1":
-      "curl でアップロード：curl --upload-file ./file.txt https://send.to/file.txt。上のアップロードゾーンにファイルをドラッグ＆ドロップすることもできます。",
-    "qa.q2": "ファイルはどのくらい保存されますか？",
-    "qa.a2":
-      "デフォルトでは、サーバー設定に基づいてファイルが自動的に期限切れになります。Max-Days ヘッダーでカスタム有効期限を設定し、Max-Downloads でダウンロード回数を制限できます。",
-    "qa.q3": "データは暗号化されていますか？",
-    "qa.a3":
-      "ファイルは HTTPS で転送中に暗号化されます。サーバー側暗号化には X-Encrypt-Password ヘッダーを追加して OpenPGP AES-256 で暗号化できます。アップロード前に GPG や OpenSSL でクライアント側暗号化も可能です。",
-    "qa.q4": "アップロード後にファイルを削除できますか？",
-    "qa.a4":
-      "はい。すべてのアップロードで X-Url-Delete レスポンスヘッダーに削除 URL が返されます。DELETE リクエストで即座にファイルを削除できます。",
-    "qa.q5": "send.to をセルフホストできますか？",
-    "qa.a5":
-      "はい。send.to は依存関係ゼロの単一静的バイナリにコンパイルされます。Docker またはサーバーで直接実行できます。ローカル、S3、Google Drive、Storj をバックエンドとしてサポートしています。",
-    "qa.q6": "最大ファイルサイズは？",
-    "qa.a6":
-      "最大ファイルサイズはサーバー管理者が --max-upload-size フラグで設定します。アプリケーション自体にハードコードされた制限はありません。",
   },
 };
 
