@@ -40,8 +40,61 @@ export const translations: Record<Lang, Record<string, string>> = {
     "upload.copyDelete": "Copy delete command",
     "upload.copyFailed": "Copy failed — please copy manually",
     "upload.tooLarge": "File is too large",
+    // Hero CTA
+    "hero.cta.primary": "Upload a file",
+    "hero.cta.code": "$ curl --upload-file file.txt",
+    "hero.cta.note": "No signup. No tracking. 52 MB Docker image.",
+    // Features section
+    "features.label": "Built with care",
+    "features.title": "Every detail, considered.",
+    "features.subtitle":
+      "Self-hosted infrastructure shouldn't feel industrial. send.to is built to be pleasant to operate, pleasant to use, and pleasant to look at.",
+    "feature.encryption.label": "Encryption",
+    "feature.encryption.title": "End-to-end encryption that just works.",
+    "feature.encryption.desc":
+      "Add one header and your file is encrypted with OpenPGP AES-256 before touching disk. The server can't read it, and neither can your hosting provider.",
+    "feature.expiry.label": "Auto-expiry",
+    "feature.expiry.title": "Links that expire.",
+    "feature.expiry.desc":
+      "Per-file Max-Days and Max-Downloads. The file — and the link — quietly vanish.",
+    "feature.expiry.caption": "default ttl",
+    "feature.storage.label": "Storage",
+    "feature.storage.title": "One flag, four backends.",
+    "feature.storage.desc":
+      "Local filesystem for dev, S3 for scale, Google Drive for personal, Storj for decentralized. Swap with a single CLI flag.",
+    "feature.hardening.label": "Hardening",
+    "feature.hardening.title": "Hardened by default.",
+    "feature.hardening.desc":
+      "Runs non-root on a scratch container. No shell, no package manager, no attack surface.",
+    "feature.binary.label": "Developer experience",
+    "feature.binary.title": "One binary, zero dependencies.",
+    "feature.binary.desc":
+      "CGO_ENABLED=0 build runs on scratch. Cold starts under 50 ms. The whole container is smaller than a Slack message.",
     // CLI section
+    "cli.label": "For the command line",
+    "cli.title": "Your terminal is the UI.",
+    "cli.subtitle":
+      "Works with curl, wget, HTTPie, PowerShell — anything that speaks HTTP. Headers do all the work.",
     "cli.divider": "or use the command line",
+    // How it works (flow)
+    "flow.label": "Three steps",
+    "flow.title": "That's the whole API.",
+    "flow.step1.title": "Upload",
+    "flow.step1.desc":
+      "PUT any file to any URL. The body is the file; headers configure expiry, download caps, and encryption.",
+    "flow.step2.title": "Share",
+    "flow.step2.desc":
+      "Paste the token URL into chat, a CI log, an email — anywhere. No login required to download.",
+    "flow.step3.title": "Forget",
+    "flow.step3.desc":
+      "Files auto-expire per your limits. Or use the one-shot DELETE URL returned on upload to remove it now.",
+    // Final CTA
+    "finalcta.label": "Ready to ship",
+    "finalcta.title": "Stop emailing files.\nStart sending them.",
+    "finalcta.subtitle":
+      "One docker compose up and you have a production-hardened file sharing service on your own domain. It takes about thirty seconds.",
+    "finalcta.cta.primary": "Get started",
+    "finalcta.meta": "Open source · MIT · no tracking · 52 MB image",
     // Features (index page cards)
     "feature.encryption": "End-to-end encryption",
     "feature.encryptionDesc": "Encrypt files with a password before upload using OpenPGP AES-256.",
@@ -269,8 +322,59 @@ export const translations: Record<Lang, Record<string, string>> = {
     "upload.copyDelete": "复制删除命令",
     "upload.copyFailed": "复制失败 — 请手动复制",
     "upload.tooLarge": "文件过大",
+    // Hero CTA
+    "hero.cta.primary": "上传文件",
+    "hero.cta.code": "$ curl --upload-file 文件.txt",
+    "hero.cta.note": "无需注册，无任何追踪，Docker 镜像仅 52 MB。",
+    // Features section
+    "features.label": "用心打造",
+    "features.title": "每个细节都经过深思。",
+    "features.subtitle":
+      "自托管的基础设施不该让人觉得冰冷。send.to 被做成运维起来、使用起来、看起来都让人舒服的样子。",
+    "feature.encryption.label": "加密",
+    "feature.encryption.title": "端到端加密，开箱即用。",
+    "feature.encryption.desc":
+      "加一个请求头，文件就会在落盘前用 OpenPGP AES-256 加密。服务端读不到，托管商也读不到。",
+    "feature.expiry.label": "自动过期",
+    "feature.expiry.title": "会过期的分享链接。",
+    "feature.expiry.desc":
+      "每个文件独立设置 Max-Days 和 Max-Downloads。到期后文件和链接一起悄悄消失。",
+    "feature.expiry.caption": "默认有效期",
+    "feature.storage.label": "存储",
+    "feature.storage.title": "一个参数,四种后端。",
+    "feature.storage.desc":
+      "开发用本地文件系统,生产用 S3,个人用 Google Drive,去中心化用 Storj。切换只需一个 CLI 参数。",
+    "feature.hardening.label": "安全加固",
+    "feature.hardening.title": "默认就是生产级安全。",
+    "feature.hardening.desc":
+      "以非 root 身份运行在 scratch 容器里。没有 shell,没有包管理器,没有攻击面。",
+    "feature.binary.label": "开发体验",
+    "feature.binary.title": "单一二进制,零依赖。",
+    "feature.binary.desc":
+      "CGO_ENABLED=0 编译,跑在 scratch 上。冷启动 50ms 以内。整个容器比一条 Slack 消息还小。",
     // CLI section
+    "cli.label": "面向命令行",
+    "cli.title": "终端就是你的 UI。",
+    "cli.subtitle": "兼容 curl、wget、HTTPie、PowerShell —— 任何支持 HTTP 的客户端。所有配置通过请求头完成。",
     "cli.divider": "或使用命令行",
+    // How it works (flow)
+    "flow.label": "三步走",
+    "flow.title": "整个 API 就这么简单。",
+    "flow.step1.title": "上传",
+    "flow.step1.desc":
+      "PUT 任何文件到任何 URL。请求体就是文件本身,请求头控制过期、下载次数和加密。",
+    "flow.step2.title": "分享",
+    "flow.step2.desc":
+      "把带 token 的 URL 粘贴到聊天、CI 日志或邮件里 —— 哪都行。下载不需要登录。",
+    "flow.step3.title": "忘掉它",
+    "flow.step3.desc":
+      "文件按你设置的规则自动过期。也可以用上传时返回的一次性 DELETE URL 立即删除。",
+    // Final CTA
+    "finalcta.label": "准备好上线",
+    "finalcta.title": "别再用邮件发文件了。\n开始发链接吧。",
+    "finalcta.subtitle": "一条 docker compose up,你就在自己的域名上拥有了一个生产级硬化的文件分享服务。大约需要三十秒。",
+    "finalcta.cta.primary": "立即开始",
+    "finalcta.meta": "开源 · MIT · 无追踪 · 镜像 52 MB",
     // Features (index page cards)
     "feature.encryption": "端到端加密",
     "feature.encryptionDesc": "使用 OpenPGP AES-256 在上传前加密文件。",
@@ -487,8 +591,61 @@ export const translations: Record<Lang, Record<string, string>> = {
     "upload.copyDelete": "削除コマンドをコピー",
     "upload.copyFailed": "コピー失敗 — 手動でコピーしてください",
     "upload.tooLarge": "ファイルサイズが大きすぎます",
+    // Hero CTA
+    "hero.cta.primary": "ファイルをアップロード",
+    "hero.cta.code": "$ curl --upload-file file.txt",
+    "hero.cta.note": "登録不要・トラッキングなし・Dockerイメージ52MB。",
+    // Features section
+    "features.label": "丁寧に作られた",
+    "features.title": "すべてのディテールを大切に。",
+    "features.subtitle":
+      "セルフホスト基盤は無機質である必要はありません。send.to は運用も、使用も、眺めていて心地よいように作られています。",
+    "feature.encryption.label": "暗号化",
+    "feature.encryption.title": "実用的な E2E 暗号化。",
+    "feature.encryption.desc":
+      "ヘッダーを 1 つ追加するだけで、ファイルはディスクに書き込まれる前に OpenPGP AES-256 で暗号化されます。サーバーもホスティング業者も読めません。",
+    "feature.expiry.label": "自動期限切れ",
+    "feature.expiry.title": "期限のあるリンク。",
+    "feature.expiry.desc":
+      "ファイルごとに Max-Days と Max-Downloads を設定。ファイルもリンクも静かに消えていきます。",
+    "feature.expiry.caption": "デフォルト有効期限",
+    "feature.storage.label": "ストレージ",
+    "feature.storage.title": "1 つのフラグで 4 種のバックエンド。",
+    "feature.storage.desc":
+      "開発はローカル FS、スケールは S3、個人用は Google Drive、分散型は Storj。CLI フラグ 1 つで切り替え。",
+    "feature.hardening.label": "セキュリティ強化",
+    "feature.hardening.title": "デフォルトで堅牢。",
+    "feature.hardening.desc":
+      "scratch コンテナ上を非 root で実行。シェルもパッケージマネージャもなく、攻撃面はゼロ。",
+    "feature.binary.label": "開発者体験",
+    "feature.binary.title": "1 つのバイナリ、依存ゼロ。",
+    "feature.binary.desc":
+      "CGO_ENABLED=0 ビルドで scratch 上で動作。コールドスタートは 50ms 未満。コンテナ全体が Slack メッセージより小さい。",
     // CLI section
+    "cli.label": "コマンドライン向け",
+    "cli.title": "ターミナルが UI です。",
+    "cli.subtitle":
+      "curl、wget、HTTPie、PowerShell 何でも OK。HTTP が話せるクライアントなら動きます。設定はすべてヘッダーで。",
     "cli.divider": "またはコマンドラインを使用",
+    // How it works (flow)
+    "flow.label": "3 ステップ",
+    "flow.title": "API はこれだけ。",
+    "flow.step1.title": "アップロード",
+    "flow.step1.desc":
+      "任意のファイルを任意の URL に PUT。本文がファイル、ヘッダーで有効期限・ダウンロード上限・暗号化を指定。",
+    "flow.step2.title": "共有",
+    "flow.step2.desc":
+      "トークン付きの URL をチャット、CI ログ、メールに貼るだけ。ダウンロードにログインは不要。",
+    "flow.step3.title": "忘れる",
+    "flow.step3.desc":
+      "ファイルは設定に従って自動で消えます。アップロード時に返される DELETE URL で即削除も可能。",
+    // Final CTA
+    "finalcta.label": "デプロイ準備完了",
+    "finalcta.title": "ファイルをメールで送るのをやめよう。\nリンクを送ろう。",
+    "finalcta.subtitle":
+      "docker compose up 一発で、自分のドメインに本番運用レベルのファイル共有サービスが立ち上がります。約 30 秒。",
+    "finalcta.cta.primary": "はじめる",
+    "finalcta.meta": "オープンソース · MIT · トラッキングなし · イメージ 52 MB",
     // Features (index page cards)
     "feature.encryption": "エンドツーエンド暗号化",
     "feature.encryptionDesc": "OpenPGP AES-256でアップロード前にファイルを暗号化。",
