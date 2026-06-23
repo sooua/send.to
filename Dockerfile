@@ -37,7 +37,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # Tiny healthcheck binary — lets scratch containers satisfy HEALTHCHECK.
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    printf 'package main\nimport ("net/http";"os";"time")\nfunc main(){c:=&http.Client{Timeout:3*time.Second};r,e:=c.Get("http://127.0.0.1:8080/health.html");if e!=nil||r.StatusCode!=200{os.Exit(1)}}\n' > /tmp/healthcheck.go && \
+    printf 'package main\nimport ("net/http";"os";"time")\nfunc main(){c:=&http.Client{Timeout:3*time.Second};r,e:=c.Get("http://127.0.0.1:18080/health.html");if e!=nil||r.StatusCode!=200{os.Exit(1)}}\n' > /tmp/healthcheck.go && \
     CGO_ENABLED=0 go build -ldflags "-s -w" -o /out/healthcheck /tmp/healthcheck.go
 
 # Non-root user (UID/GID 10001); overridable at build time.
@@ -74,12 +74,12 @@ COPY --from=build --chown=${PUID}:${PGID} /out/tmp  /tmp
 
 USER ${PUID}:${PGID}
 
-EXPOSE 8080
+EXPOSE 18080
 VOLUME ["/data"]
 
 ENV PROVIDER=local \
     BASEDIR=/data \
-    LISTENER=:8080 \
+    LISTENER=:18080 \
     TEMP_PATH=/tmp \
     WEB_PATH=/app/web
 

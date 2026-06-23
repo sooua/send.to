@@ -17,7 +17,7 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 
-$Port     = if ($env:PORT) { $env:PORT } else { "8080" }
+$Port     = if ($env:PORT) { $env:PORT } else { "18080" }
 $BuildDir = Join-Path (Get-Location) "build"
 $DataDir  = if ($env:DATA_DIR) { $env:DATA_DIR } else { Join-Path (Get-Location) "data" }
 $TmpDir   = if ($env:TMP_DIR)  { $env:TMP_DIR  } else { Join-Path $DataDir "tmp" }

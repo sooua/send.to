@@ -16,7 +16,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 MODE="${1:-foreground}"
-PORT="${PORT:-8080}"
+PORT="${PORT:-18080}"
 BUILD_DIR="$(pwd)/build"
 DATA_DIR="${DATA_DIR:-$(pwd)/data}"
 TMP_DIR="${TMP_DIR:-$(pwd)/data/tmp}"

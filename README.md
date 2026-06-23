@@ -67,7 +67,7 @@ One static Go binary. One 52 MB Docker image. No database. No account. Your file
 
 ## Quick start
 
-Pick whichever fits your setup. All three produce the same running service on <http://localhost:8080>.
+Pick whichever fits your setup. All three produce the same running service on <http://localhost:18080>.
 
 ### Docker Compose (recommended)
 
@@ -233,7 +233,7 @@ Every CLI flag has an environment-variable equivalent (`--listener` ↔ `LISTENE
 
 | Flag / Env                        | Default     | Notes                                         |
 | --------------------------------- | ----------- | --------------------------------------------- |
-| `--listener` / `LISTENER`         | `:8080`     | Plain HTTP bind address                       |
+| `--listener` / `LISTENER`         | `:18080`     | Plain HTTP bind address                       |
 | `--tls-listener` / `TLS_LISTENER` | empty       | Enable native HTTPS                           |
 | `--provider` / `PROVIDER`         | —           | `local` \| `s3` \| `gdrive` \| `storj`        |
 | `--basedir` / `BASEDIR`           | —           | Storage root for the `local` provider         |
@@ -261,7 +261,7 @@ Two production patterns:
 
 ```caddy
 files.example.com {
-    reverse_proxy 127.0.0.1:8080
+    reverse_proxy 127.0.0.1:18080
 }
 ```
 

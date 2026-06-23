@@ -67,7 +67,7 @@ curl https://send.to/aB3cD4eF/build.tar.gz -o build.tar.gz
 
 ## 快速开始
 
-三种方式任选其一，最终都是同一个服务跑在 <http://localhost:8080>。
+三种方式任选其一，最终都是同一个服务跑在 <http://localhost:18080>。
 
 ### Docker Compose（推荐）
 
@@ -233,7 +233,7 @@ Web UI 的 `/api-docs` 页面有实时 API 参考。
 
 | Flag / 环境变量                     | 默认值    | 说明                                           |
 | ----------------------------------- | --------- | ---------------------------------------------- |
-| `--listener` / `LISTENER`           | `:8080`   | HTTP 监听地址                                  |
+| `--listener` / `LISTENER`           | `:18080`   | HTTP 监听地址                                  |
 | `--tls-listener` / `TLS_LISTENER`   | 空        | 启用原生 HTTPS                                 |
 | `--provider` / `PROVIDER`           | —         | `local` \| `s3` \| `gdrive` \| `storj`         |
 | `--basedir` / `BASEDIR`             | —         | `local` 存储后端的数据目录                     |
@@ -261,7 +261,7 @@ Web UI 的 `/api-docs` 页面有实时 API 参考。
 
 ```caddy
 files.example.com {
-    reverse_proxy 127.0.0.1:8080
+    reverse_proxy 127.0.0.1:18080
 }
 ```
 

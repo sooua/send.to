@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "${HOST_PORT:-8080}:8080"
+      - "${HOST_PORT:-18080}:18080"
 
     volumes:
       - sendto-data:/data
@@ -30,7 +30,7 @@ services:
       # Core
       PROVIDER: "${PROVIDER:-local}"
       BASEDIR: "${BASEDIR:-/data}"
-      LISTENER: ":8080"
+      LISTENER: ":18080"
       WEB_PATH: "${WEB_PATH:-/app/web}"
 
       # Limits & lifecycle

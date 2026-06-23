@@ -41,7 +41,7 @@ The `Makefile` is the fastest way to run common workflows:
 Backend only (default local storage):
 
 ```bash
-go run . --provider local --basedir /tmp/send.to --listener :8080
+go run . --provider local --basedir /tmp/send.to --listener :18080
 ```
 
 Backend + web frontend:

@@ -108,7 +108,7 @@ import CodeBlock from "../components/CodeBlock.astro";
             <CodeBlock
               title="docker run"
               titleKey="code.dockerRun"
-              code={`<span class="code-prompt">$</span> docker run -p 8080:8080 \\
+              code={`<span class="code-prompt">$</span> docker run -p 18080:18080 \\
     -v /tmp/send.to:/data \\
     iuumua/sendto \\
     --provider local --basedir /data`}
@@ -117,7 +117,7 @@ import CodeBlock from "../components/CodeBlock.astro";
             <CodeBlock
               title="docker run with S3"
               titleKey="code.dockerRunS3"
-              code={`<span class="code-prompt">$</span> docker run -p 8080:8080 \\
+              code={`<span class="code-prompt">$</span> docker run -p 18080:18080 \\
     -e AWS_ACCESS_KEY=your-key \\
     -e AWS_SECRET_KEY=your-secret \\
     iuumua/sendto \\
@@ -127,7 +127,7 @@ import CodeBlock from "../components/CodeBlock.astro";
             <CodeBlock
               title="with encryption & limits"
               titleKey="code.dockerAdvanced"
-              code={`<span class="code-prompt">$</span> docker run -p 8080:8080 \\
+              code={`<span class="code-prompt">$</span> docker run -p 18080:18080 \\
     iuumua/sendto \\
     --provider local --basedir /data \\
     --max-upload-size 5242880 \\

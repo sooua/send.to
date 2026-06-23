@@ -25,7 +25,7 @@ case "$cmd" in
         log "Building image and starting..."
         docker compose up -d --build
         port=$(grep -E "^HOST_PORT=" .env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
-        port=${port:-8080}
+        port=${port:-18080}
         log "Waiting for readiness on :$port ..."
         for i in $(seq 1 30); do
             if curl -sS -o /dev/null -w "%{http_code}" "http://127.0.0.1:$port/health.html" 2>/dev/null | grep -q 200; then

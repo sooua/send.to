@@ -74,7 +74,7 @@ dev:
 	@$(MAKE) -j 2 dev-server dev-web
 
 dev-server:
-	go run . --listener :8080 --web-path $(WEB_DIR)/dist
+	go run . --listener :18080 --web-path $(WEB_DIR)/dist
 
 dev-web:
 	cd $(WEB_DIR) && npm run dev
@@ -83,7 +83,7 @@ docker:
 	docker build -t $(BINARY):$(VERSION) .
 
 docker-run:
-	docker run --rm -p 8080:8080 $(BINARY):$(VERSION)
+	docker run --rm -p 18080:18080 $(BINARY):$(VERSION)
 
 pre-commit: fmt vet lint test
 

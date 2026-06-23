@@ -29,7 +29,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     "upload.downloadCmd": "Download with curl",
     "upload.deleteCmd": "Delete file",
     "upload.backendError":
-      "Backend not running. Start it with: go run main.go --provider local --basedir /tmp/send.to --listener :8080",
+      "Backend not running. Start it with: go run main.go --provider local --basedir /tmp/send.to --listener :18080",
     "upload.eta": "ETA",
     "upload.cancel": "Cancel",
     "upload.close": "Close",
@@ -268,7 +268,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     "upload.downloadCmd": "curl 下载命令",
     "upload.deleteCmd": "删除文件",
     "upload.backendError":
-      "后端未运行。请启动：go run main.go --provider local --basedir /tmp/send.to --listener :8080",
+      "后端未运行。请启动：go run main.go --provider local --basedir /tmp/send.to --listener :18080",
     "upload.eta": "预计剩余",
     "upload.cancel": "取消",
     "upload.close": "关闭",
@@ -497,7 +497,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     "upload.downloadCmd": "curlでダウンロード",
     "upload.deleteCmd": "ファイルを削除",
     "upload.backendError":
-      "バックエンドが起動していません。起動コマンド: go run main.go --provider local --basedir /tmp/send.to --listener :8080",
+      "バックエンドが起動していません。起動コマンド: go run main.go --provider local --basedir /tmp/send.to --listener :18080",
     "upload.eta": "残り時間",
     "upload.cancel": "キャンセル",
     "upload.close": "閉じる",

@@ -40,8 +40,8 @@ VERSION:
 var globalFlags = []cli.Flag{
 	&cli.StringFlag{
 		Name:    "listener",
-		Usage:   "127.0.0.1:8080",
-		Value:   "127.0.0.1:8080",
+		Usage:   "127.0.0.1:18080",
+		Value:   "127.0.0.1:18080",
 		EnvVars: []string{"LISTENER"},
 	},
 	// redirect to https?
