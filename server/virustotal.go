@@ -58,5 +58,5 @@ func (s *Server) virusTotalHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.logger.Info("VirusTotal scan result", "result", result)
-	_, _ = w.Write([]byte(fmt.Sprintf("%v\n", result.Permalink)))
+	_, _ = fmt.Fprintf(w, "%v\n", result.Permalink)
 }

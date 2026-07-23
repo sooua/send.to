@@ -482,7 +482,7 @@ func resolveKey(key, proxyPath string) string {
 
 	key = strings.TrimPrefix(key, proxyPath)
 
-	key = strings.Replace(key, "\\", "/", -1)
+	key = strings.ReplaceAll(key, "\\", "/")
 
 	return key
 }

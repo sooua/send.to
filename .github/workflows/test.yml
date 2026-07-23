@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         go_version:
-          - '1.24'
+          - '1.25'
     name: Go test (${{ matrix.go_version }})
     steps:
       - uses: actions/checkout@v4
@@ -45,12 +45,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.25'
           check-latest: true
           cache: true
-      - uses: golangci/golangci-lint-action@v6
+      # v8 of the action is the first that speaks the golangci-lint v2 config
+      # schema this repo now uses; `latest` on the v6 action fails to parse it.
+      - uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          version: v2.12
           args: "--config .golangci.yml"
 
   govulncheck:
@@ -60,7 +62,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.25'
           check-latest: true
           cache: true
       - name: Install govulncheck

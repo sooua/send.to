@@ -28,7 +28,7 @@ type CLAMDConn struct {
 }
 
 func (conn *CLAMDConn) sendCommand(command string) error {
-	_, err := conn.Write([]byte(fmt.Sprintf("n%s\n", command)))
+	_, err := fmt.Fprintf(conn, "n%s\n", command)
 	return err
 }
 

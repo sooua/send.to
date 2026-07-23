@@ -1,3 +1,11 @@
+# golangci-lint v2 configuration.
+#
+# The previous file used the v1 schema (`output.formats` as a list, top-level
+# `issues.exclude-rules`). golangci-lint v2 rejects it outright, so with the
+# workflow asking for `version: latest` the lint job failed before running a
+# single check.
+version: "2"
+
 run:
   timeout: 10m
   issues-exit-code: 1
@@ -5,24 +13,34 @@ run:
 
 output:
   formats:
-    - format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
-
-linters:
-  disable:
-    - unused
+    text:
+      path: stdout
+      print-linter-name: true
+      print-issued-lines: true
 
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   new: false
-  exclude-use-default: false
-  exclude-rules:
-    - path: server/storage/s3\.go
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: _test\.go
-      linters:
-        - errcheck
+
+linters:
+  default: standard
+  disable:
+    - unused
+  exclusions:
+    generated: strict
+    rules:
+      # The S3 backend still uses the deprecated EndpointResolver; migrating
+      # off it is a separate change.
+      - path: server/storage/s3\.go
+        linters:
+          - staticcheck
+        text: "SA1019"
+      # Tests assert on results, not on every Close/Write error.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt

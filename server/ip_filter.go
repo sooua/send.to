@@ -197,9 +197,9 @@ type ipFilterMiddleware struct {
 func (m *ipFilterMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	remoteIP := realip.FromRequest(r)
 
-	if !m.ipFilter.Allowed(remoteIP) {
-		if m.ipFilter.logger != nil {
-			m.ipFilter.logger.Warn("IP filter blocked request",
+	if !m.Allowed(remoteIP) {
+		if m.logger != nil {
+			m.logger.Warn("IP filter blocked request",
 				"ip", remoteIP,
 				"method", r.Method,
 				"path", r.URL.Path,
