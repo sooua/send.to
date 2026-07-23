@@ -3,12 +3,17 @@ name: deploy multi-architecture Docker images for send.to with buildx
 on:
   schedule:
     - cron: '0 0 * * *' # everyday at midnight UTC
+  # Lets the multi-arch build be verified on demand instead of only after a
+  # nightly cron or a release tag.
+  workflow_dispatch:
   pull_request:
-    branches: main
+    branches:
+      - main
   push:
-    branches: main
+    branches:
+      - main
     tags:
-      - v*
+      - 'v*'
 
 jobs:
   buildx:
