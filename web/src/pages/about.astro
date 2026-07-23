@@ -8,11 +8,18 @@ import CodeBlock from "../components/CodeBlock.astro";
   <section class="border-b border-border bg-background">
     <div class="mx-auto max-w-5xl px-6 py-20 text-center sm:py-28">
       <p class="mb-4 text-[13px] font-medium uppercase tracking-wide text-[#c96442]">About</p>
-      <h1 class="font-serif text-[48px] font-medium leading-tight text-primary sm:text-[64px]" data-i18n="about.title">
+      <h1
+        class="font-serif text-[48px] font-medium leading-tight text-primary sm:text-[64px]"
+        data-i18n="about.title"
+      >
         A calmer way<br />to share files.
       </h1>
-      <p class="mx-auto mt-6 max-w-2xl text-[18px] leading-relaxed text-muted" data-i18n="about.subtitle">
-        send.to is an open-source file sharing service that makes it easy to share files from the command line.
+      <p
+        class="mx-auto mt-6 max-w-2xl text-[18px] leading-relaxed text-muted"
+        data-i18n="about.subtitle"
+      >
+        send.to is an open-source file sharing service that makes it easy to share files from the
+        command line.
       </p>
     </div>
   </section>
@@ -25,8 +32,8 @@ import CodeBlock from "../components/CodeBlock.astro";
         <div class="lg:col-span-2">
           <h2 class="mb-6 text-2xl text-primary" data-i18n="about.whatIs">What is send.to?</h2>
           <p class="text-base leading-relaxed text-muted" data-i18n="about.whatIsDesc">
-            send.to is a lightweight, self-hosted file sharing service built with Go. It compiles
-            to a single static binary with zero external dependencies, making it trivial to deploy.
+            send.to is a lightweight, self-hosted file sharing service built with Go. It compiles to
+            a single static binary with zero external dependencies, making it trivial to deploy.
             Upload files via curl or the web interface, get a shareable link, and files auto-expire
             based on your configuration.
           </p>
@@ -46,12 +53,42 @@ import CodeBlock from "../components/CodeBlock.astro";
               FILE TRANSFER
             </h3>
             <ul class="space-y-3 border-t border-border">
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.shareUrl">Share files with a URL</li>
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.maxDownloads">Set maximum download count per file</li>
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.multiUpload">Upload multiple files at once</li>
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.resumable">Resumable downloads via HTTP Range requests</li>
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.expiration">Auto-expiration with configurable TTL and purge interval</li>
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.deleteToken">Delete files with a unique deletion token</li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.shareUrl"
+              >
+                Share files with a URL
+              </li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.maxDownloads"
+              >
+                Set maximum download count per file
+              </li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.multiUpload"
+              >
+                Upload multiple files at once
+              </li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.resumable"
+              >
+                Resumable downloads via HTTP Range requests
+              </li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.expiration"
+              >
+                Auto-expiration with configurable TTL and purge interval
+              </li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.deleteToken"
+              >
+                Delete files with a unique deletion token
+              </li>
             </ul>
           </div>
 
@@ -60,12 +97,36 @@ import CodeBlock from "../components/CodeBlock.astro";
               SECURITY
             </h3>
             <ul class="space-y-3 border-t border-border">
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.encryption">Server-side OpenPGP AES-256 encryption via headers</li>
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.gpgOpenssl">Client-side encryption with GPG or OpenSSL</li>
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.virusScan">Virus scanning with ClamAV and VirusTotal</li>
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.auth">HTTP Basic Auth, htpasswd, and IP whitelist/blacklist</li>
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.tls">Automatic TLS via Let's Encrypt</li>
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.rateLimit">Per-IP rate limiting</li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.encryption"
+              >
+                Server-side OpenPGP AES-256 encryption via headers
+              </li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.gpgOpenssl"
+              >
+                Client-side encryption with GPG or OpenSSL
+              </li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.virusScan"
+              >
+                Virus scanning with ClamAV and VirusTotal
+              </li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.auth">
+                HTTP Basic Auth, htpasswd, and IP whitelist/blacklist
+              </li>
+              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.tls">
+                Automatic TLS via Let's Encrypt
+              </li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.rateLimit"
+              >
+                Per-IP rate limiting
+              </li>
             </ul>
           </div>
 
@@ -74,8 +135,18 @@ import CodeBlock from "../components/CodeBlock.astro";
               PREVIEW &amp; CLIENTS
             </h3>
             <ul class="space-y-3 border-t border-border">
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.preview">File preview for images, video, audio, and Markdown</li>
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.altClients">Works with curl, wget, HTTPie, and PowerShell</li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.preview"
+              >
+                File preview for images, video, audio, and Markdown
+              </li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.altClients"
+              >
+                Works with curl, wget, HTTPie, and PowerShell
+              </li>
             </ul>
           </div>
 
@@ -84,8 +155,18 @@ import CodeBlock from "../components/CodeBlock.astro";
               INFRASTRUCTURE
             </h3>
             <ul class="space-y-3 border-t border-border">
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.storage">Multiple storage backends: local, S3, Google Drive, Storj</li>
-              <li class="border-b border-border py-3 text-sm text-muted" data-i18n="feature.selfHosted">Single binary deployment with Docker support</li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.storage"
+              >
+                Multiple storage backends: local, S3, Google Drive, Storj
+              </li>
+              <li
+                class="border-b border-border py-3 text-sm text-muted"
+                data-i18n="feature.selfHosted"
+              >
+                Single binary deployment with Docker support
+              </li>
             </ul>
           </div>
         </div>
@@ -149,27 +230,39 @@ import CodeBlock from "../components/CodeBlock.astro";
           <h2 class="mb-8 text-2xl text-primary" data-i18n="about.techStack">Tech Stack</h2>
           <dl class="grid grid-cols-1 gap-px bg-border sm:grid-cols-2">
             <div class="bg-background p-6">
-              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.language">LANGUAGE</dt>
+              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.language">
+                LANGUAGE
+              </dt>
               <dd class="text-sm text-primary">Go 1.25+</dd>
             </div>
             <div class="bg-background p-6">
-              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.router">ROUTER</dt>
+              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.router">
+                ROUTER
+              </dt>
               <dd class="text-sm text-primary">gorilla/mux</dd>
             </div>
             <div class="bg-background p-6">
-              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.encryption">ENCRYPTION</dt>
+              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.encryption">
+                ENCRYPTION
+              </dt>
               <dd class="text-sm text-primary">OpenPGP AES-256</dd>
             </div>
             <div class="bg-background p-6">
-              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.deployment">DEPLOYMENT</dt>
+              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.deployment">
+                DEPLOYMENT
+              </dt>
               <dd class="text-sm text-primary">Single binary / Docker</dd>
             </div>
             <div class="bg-background p-6">
-              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.storage">STORAGE</dt>
+              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.storage">
+                STORAGE
+              </dt>
               <dd class="text-sm text-primary">Local · S3 · Google Drive · Storj</dd>
             </div>
             <div class="bg-background p-6">
-              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.frontend">FRONTEND</dt>
+              <dt class="font-mono-track mb-2 text-xs text-muted-dark" data-i18n="tech.frontend">
+                FRONTEND
+              </dt>
               <dd class="text-sm text-primary">Astro 5 · React 19 · Tailwind 4</dd>
             </div>
           </dl>

@@ -14,7 +14,10 @@ const currentPath = Astro.url.pathname;
 <header class="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
   <nav class="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
     <div class="flex items-center gap-10">
-      <a href="/" class="font-serif text-[22px] font-medium text-primary transition-opacity hover:opacity-80">
+      <a
+        href="/"
+        class="font-serif text-[22px] font-medium text-primary transition-opacity hover:opacity-80"
+      >
         send.to
       </a>
 
@@ -54,25 +57,33 @@ const currentPath = Astro.url.pathname;
         </svg>
         GitHub
       </a>
-      <a href="#upload" class="btn btn-primary btn-sm">
-        Get started →
-      </a>
+      <a href="#upload" class="btn btn-primary btn-sm"> Get started → </a>
     </div>
 
     <!-- Mobile -->
     <div class="flex items-center gap-3 md:hidden">
       <LanguageSwitcher client:load />
-      <button
-        id="mobile-menu-btn"
-        class="text-primary"
-        aria-label="Toggle menu"
-      >
-        <svg id="menu-icon" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <button id="mobile-menu-btn" class="text-primary" aria-label="Toggle menu">
+        <svg
+          id="menu-icon"
+          class="h-5 w-5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
           <line x1="3" y1="6" x2="21" y2="6"></line>
           <line x1="3" y1="12" x2="21" y2="12"></line>
           <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
-        <svg id="close-icon" class="hidden h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <svg
+          id="close-icon"
+          class="hidden h-5 w-5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
@@ -131,7 +142,9 @@ const currentPath = Astro.url.pathname;
     max-height: 0;
     opacity: 0;
     overflow: hidden;
-    transition: max-height 0.25s ease-out, opacity 0.2s ease-out;
+    transition:
+      max-height 0.25s ease-out,
+      opacity 0.2s ease-out;
   }
   .mobile-menu.is-open {
     max-height: 400px;

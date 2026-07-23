@@ -4,9 +4,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 
 <BaseLayout title="404 — File not found — send.to">
   <section class="flex min-h-[70vh] flex-col items-center justify-center bg-background px-6 py-24">
-    <p class="mb-4 text-[13px] font-medium uppercase tracking-wide text-[#c96442]">
-      Error · 404
-    </p>
+    <p class="mb-4 text-[13px] font-medium uppercase tracking-wide text-[#c96442]">Error · 404</p>
     <h1
       class="font-serif mb-6 text-center text-[96px] font-medium leading-none text-primary sm:text-[160px]"
       style="animation: scale-in 0.3s ease-out"
@@ -16,11 +14,12 @@ import BaseLayout from "../layouts/BaseLayout.astro";
     <p class="mb-3 text-center text-2xl font-serif text-primary" data-i18n="error.notFound">
       File not found
     </p>
-    <p class="mb-10 max-w-md text-center text-[15px] leading-relaxed text-muted" data-i18n="error.notFoundDesc">
+    <p
+      class="mb-10 max-w-md text-center text-[15px] leading-relaxed text-muted"
+      data-i18n="error.notFoundDesc"
+    >
       The file may have expired, reached its download limit, or never existed.
     </p>
-    <a href="/" class="btn btn-primary" data-i18n="error.backHome">
-      Back to home
-    </a>
+    <a href="/" class="btn btn-primary" data-i18n="error.backHome"> Back to home </a>
   </section>
 </BaseLayout>

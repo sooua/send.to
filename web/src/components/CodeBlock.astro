@@ -12,7 +12,10 @@ const { title = "terminal", titleKey, code } = Astro.props;
   <div class="flex items-center justify-between border-b border-white/10 px-5 py-3">
     <div class="flex items-center gap-3">
       <span class="h-2 w-2 rounded-full bg-white/30"></span>
-      <span class="text-[13px] font-medium text-[#b0aea5]" {...titleKey ? { "data-i18n": titleKey } : {}}>
+      <span
+        class="text-[13px] font-medium text-[#b0aea5]"
+        {...titleKey ? { "data-i18n": titleKey } : {}}
+      >
         {title}
       </span>
     </div>
@@ -20,18 +23,31 @@ const { title = "terminal", titleKey, code } = Astro.props;
       class="copy-btn flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] text-[#b0aea5] opacity-0 transition-all hover:bg-white/10 hover:text-white group-hover:opacity-100"
       data-i18n="code.copy"
     >
-      <svg class="copy-icon h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <svg
+        class="copy-icon h-3.5 w-3.5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+      >
         <rect x="9" y="9" width="13" height="13" rx="2"></rect>
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
       </svg>
-      <svg class="check-icon hidden h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <svg
+        class="check-icon hidden h-3.5 w-3.5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+      >
         <polyline points="20 6 9 17 4 12"></polyline>
       </svg>
       <span class="copy-label">Copy</span>
     </button>
   </div>
   <div class="overflow-x-auto p-5">
-    <pre class="font-sans text-[14px] leading-relaxed">{code ? <Fragment set:html={code} /> : <slot />}</pre>
+    <pre
+      class="font-sans text-[14px] leading-relaxed">{code ? <Fragment set:html={code} /> : <slot />}</pre>
   </div>
 </div>
 
