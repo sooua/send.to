@@ -327,7 +327,7 @@ func (s *Server) store(r *http.Request, token, filename string, reader io.Reader
 		return fmt.Errorf("could not save metadata: %w", err)
 	}
 
-	s.logger.Info("Uploading", "token", token, "filename", filename, "content_length", contentLength, "content_type", contentType)
+	s.logger.Info("Uploading", "token", maskToken(token), "filename", filename, "content_length", contentLength, "content_type", contentType)
 
 	payload, err := attachEncryptionReader(io.NopCloser(reader), r.Header.Get("X-Encrypt-Password"))
 	if err != nil {
@@ -347,7 +347,7 @@ func (s *Server) store(r *http.Request, token, filename string, reader io.Reader
 		// The metadata sidecar is already written; drop it so the token
 		// cannot resolve to a half-created upload.
 		if delErr := s.storage.Delete(r.Context(), token, filename); delErr != nil && !s.storage.IsNotExist(delErr) {
-			s.logger.Error("Could not roll back metadata after failed upload", "token", token, "filename", filename, "error", delErr)
+			s.logger.Error("Could not roll back metadata after failed upload", "token", maskToken(token), "filename", filename, "error", delErr)
 		}
 		return err
 	}

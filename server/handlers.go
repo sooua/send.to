@@ -255,6 +255,7 @@ func (s *Server) viewHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Vary", "Accept")
+
 	if acceptsHTML(r.Header) {
 		// If webPath is set and contains a static index.html, serve it directly
 		// (supports Astro/SPA frontends that don't use Go templates)
@@ -265,16 +266,93 @@ func (s *Server) viewHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if err := htmlTemplates.ExecuteTemplate(w, "index.html", data); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	} else {
-		if err := textTemplates.ExecuteTemplate(w, "index.txt", data); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		if hasHTMLTemplate(htmlTemplates, "index.html") {
+			if err := htmlTemplates.ExecuteTemplate(w, "index.html", data); err != nil {
+				s.logger.Error("Error rendering index.html", "error", err)
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			}
 			return
 		}
 	}
+
+	// Text response: curl, wget and every other non-browser client land here.
+	// A shipped index.txt wins, but there is always a built-in fallback — this
+	// used to be a hard dependency on a template file that the Astro frontend
+	// does not provide, so `curl https://send.to/` answered 500.
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+	if hasTextTemplate(textTemplates, "index.txt") {
+		if err := textTemplates.ExecuteTemplate(w, "index.txt", data); err != nil {
+			s.logger.Error("Error rendering index.txt", "error", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	s.writeUsage(w, data.WebAddress, data.SampleToken, maxUploadSize, purgeTime)
+}
+
+// writeUsage renders the plain-text landing page shown to command-line
+// clients. Kept in Go rather than a template so an instance can never be
+// deployed without it.
+func (s *Server) writeUsage(w io.Writer, webAddress, sampleToken, maxUploadSize, purgeTime string) {
+	base := strings.TrimSuffix(webAddress, "/")
+
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "send.to — easy file sharing from the command line\n")
+	fmt.Fprintf(&b, "%s\n\n", strings.Repeat("=", 48))
+
+	fmt.Fprintf(&b, "UPLOAD\n")
+	fmt.Fprintf(&b, "  curl --upload-file ./notes.md %s/notes.md\n", base)
+	fmt.Fprintf(&b, "  curl -F file=@./notes.md %s/\n\n", base)
+
+	fmt.Fprintf(&b, "DOWNLOAD\n")
+	fmt.Fprintf(&b, "  curl %s/%s/notes.md -o notes.md\n", base, sampleToken)
+	fmt.Fprintf(&b, "  curl -C - -o big.iso %s/%s/big.iso     # resume\n\n", base, sampleToken)
+
+	fmt.Fprintf(&b, "OPTIONS (request headers)\n")
+	fmt.Fprintf(&b, "  Max-Days: 7               expire after N days\n")
+	fmt.Fprintf(&b, "  Max-Downloads: 5          expire after N completed downloads\n")
+	fmt.Fprintf(&b, "  X-Encrypt-Password: pw    encrypt at rest\n")
+	fmt.Fprintf(&b, "  X-Decrypt-Password: pw    decrypt on download\n")
+	fmt.Fprintf(&b, "  Accept: application/json  structured response with the delete URL\n\n")
+
+	fmt.Fprintf(&b, "DELETE\n")
+	fmt.Fprintf(&b, "  curl -X DELETE <the X-Url-Delete link returned on upload>\n\n")
+
+	fmt.Fprintf(&b, "SHELL ALIAS\n")
+	fmt.Fprintf(&b, "  send() { curl --progress-bar --upload-file \"$1\" %s/$(basename \"$1\") | tee /dev/null; }\n\n", base)
+
+	fmt.Fprintf(&b, "THIS INSTANCE\n")
+	if maxUploadSize != "" {
+		fmt.Fprintf(&b, "  max upload size    %s\n", maxUploadSize)
+	} else {
+		fmt.Fprintf(&b, "  max upload size    unlimited\n")
+	}
+	if purgeTime != "" {
+		fmt.Fprintf(&b, "  uploads purged     after %s\n", purgeTime)
+	} else {
+		fmt.Fprintf(&b, "  uploads purged     never (unless Max-Days is set)\n")
+	}
+	fmt.Fprintf(&b, "  storage backend    %s\n", s.storage.Type())
+	fmt.Fprintf(&b, "  version            %s\n\n", Version)
+
+	fmt.Fprintf(&b, "API reference: %s/api-docs  ·  more recipes: examples.md in the repository\n", base)
+
+	_, _ = io.WriteString(w, b.String())
+}
+
+// hasHTMLTemplate and hasTextTemplate report whether a named template was
+// actually loaded. Both guard against a nil *Template, which is what
+// ParseGlob returns when its pattern matches no files.
+func hasHTMLTemplate(set *htmlTemplate.Template, name string) bool {
+	return set != nil && set.Lookup(name) != nil
+}
+
+func hasTextTemplate(set *textTemplate.Template, name string) bool {
+	return set != nil && set.Lookup(name) != nil
 }
 
 func (s *Server) notFoundHandler(w http.ResponseWriter, _ *http.Request) {
@@ -458,7 +536,7 @@ func (s *Server) increaseDownload(ctx context.Context, token, filename string) e
 // so the error is logged instead of failing the request that noticed it.
 func (s *Server) purgeExpired(ctx context.Context, token, filename string) {
 	if err := s.storage.Delete(ctx, token, filename); err != nil && !s.storage.IsNotExist(err) {
-		s.logger.Error("Could not delete expired upload", "token", token, "filename", filename, "error", err)
+		s.logger.Error("Could not delete expired upload", "token", maskToken(token), "filename", filename, "error", err)
 		return
 	}
 
@@ -530,10 +608,18 @@ func (s *Server) deleteHandler(w http.ResponseWriter, r *http.Request) {
 	s.metrics.deletes.Add(1)
 }
 
+// resolveURL turns a relative URL into an absolute one against the host this
+// request arrived on.
+//
+// It must not disturb r: the previous implementation cleared r.URL.Path as a
+// side effect, which is why every upload was recorded with an empty path in
+// the access log, and why anything reading r.URL after building a response URL
+// silently saw the wrong value.
 func resolveURL(r *http.Request, u *url.URL, proxyPort string) string {
-	r.URL.Path = ""
+	base := getURL(r, proxyPort)
+	base.Path = ""
 
-	return getURL(r, proxyPort).ResolveReference(u).String()
+	return base.ResolveReference(u).String()
 }
 
 func resolveKey(key, proxyPath string) string {

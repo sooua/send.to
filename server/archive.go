@@ -61,7 +61,7 @@ func (s *Server) copyArchiveEntry(ctx context.Context, entry archiveEntry, write
 	// Counted only once the bytes are in the archive, matching the plain
 	// download path.
 	if err := s.increaseDownload(ctx, entry.token, entry.filename); err != nil {
-		s.logger.Error("Could not record download", "token", entry.token, "filename", entry.filename, "error", err)
+		s.logger.Error("Could not record download", "token", maskToken(entry.token), "filename", entry.filename, "error", err)
 	}
 
 	s.metrics.downloads.Add(1)
@@ -75,7 +75,7 @@ func (s *Server) copyArchiveEntry(ctx context.Context, entry archiveEntry, write
 // the only possible signal is a truncated archive; the reason goes to the log.
 func (s *Server) archiveError(w http.ResponseWriter, entry archiveEntry, err error, headersSent bool) {
 	s.metrics.downloadErrors.Add(1)
-	s.logger.Error("Error building archive", "token", entry.token, "filename", entry.filename, "error", err)
+	s.logger.Error("Error building archive", "token", maskToken(entry.token), "filename", entry.filename, "error", err)
 
 	if headersSent {
 		return

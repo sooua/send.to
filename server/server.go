@@ -417,7 +417,7 @@ func panicHandler(next http.Handler, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				logger.Error("Panic recovered", "error", err, "method", r.Method, "path", r.URL.Path)
+				logger.Error("Panic recovered", "error", err, "method", r.Method, "path", redactPath(r.URL.Path))
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
 		}()
@@ -433,7 +433,8 @@ func logHandler(next http.Handler, logger *slog.Logger) http.Handler {
 		next.ServeHTTP(lw, r)
 		logger.Info("HTTP request",
 			"method", r.Method,
-			"path", r.URL.Path,
+			// Share and deletion tokens are bearer secrets; never log them raw.
+			"path", redactPath(r.URL.Path),
 			"status", lw.statusCode,
 			"duration", time.Since(start),
 			"remote_addr", r.RemoteAddr,
@@ -529,7 +530,7 @@ func (s *Server) rateLimit(next http.Handler) http.HandlerFunc {
 		ip := realip.FromRequest(r)
 
 		if !s.rateLimiter.allow(ip) {
-			s.logger.Warn("Rate limit exceeded", "ip", ip, "path", r.URL.Path)
+			s.logger.Warn("Rate limit exceeded", "ip", ip, "path", redactPath(r.URL.Path))
 			s.metrics.rateLimited.Add(1)
 			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 			return
@@ -609,7 +610,7 @@ func (s *Server) Run() {
 
 	// Astro static pages: serve index.html from each directory
 	if s.webPath != "" {
-		for _, page := range []string{"about", "api-docs", "use-cases"} {
+		for _, page := range []string{"about", "api-docs", "use-cases", "preview"} {
 			pagePath := filepath.Join(s.webPath, page, "index.html")
 			r.HandleFunc("/"+page, func(w http.ResponseWriter, r *http.Request) {
 				http.ServeFile(w, r, pagePath)

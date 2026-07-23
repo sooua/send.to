@@ -9,7 +9,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -38,11 +40,20 @@ func (s *Server) previewHandler(w http.ResponseWriter, r *http.Request) {
 
 	contentType := metadata.ContentType
 
-	// Preview templates (download.image.html, download.video.html, …) are not
-	// shipped with this distribution — the Astro frontend handles the UI
-	// instead. Bail out before doing any work: rendering a preview costs a
-	// storage Head, a 5 MB read for text files and a QR encode, all of which
-	// used to be thrown away by the redirect at the end of this handler.
+	// The Astro frontend ships a preview page that reads the file's metadata
+	// over HEAD and renders it client-side. Prefer it: it is the UI this
+	// distribution actually maintains.
+	if page := s.previewPagePath(); page != "" {
+		w.Header().Set("Cache-Control", "no-store")
+		http.ServeFile(w, r, page)
+		return
+	}
+
+	// Otherwise fall back to the classic Go templates (download.image.html,
+	// download.video.html, …), which a transfer.sh-style --web-path provides.
+	// With neither available, send the browser to the inline view so the file
+	// at least renders — and bail out before the storage Head, the 5 MB text
+	// read and the QR encode below, all of which the redirect would discard.
 	if !s.hasPreviewTemplates() {
 		inlineURL, _ := url.Parse(path.Join(s.proxyPath, "inline", token, filename))
 		http.Redirect(w, r, resolveURL(r, inlineURL, s.proxyPort), http.StatusFound)
@@ -166,11 +177,27 @@ var previewTemplates = []string{
 // --web-path. Builds that ship only the Astro frontend have none.
 func (s *Server) hasPreviewTemplates() bool {
 	for _, name := range previewTemplates {
-		if htmlTemplates.Lookup(name) != nil {
+		if hasHTMLTemplate(htmlTemplates, name) {
 			return true
 		}
 	}
 	return false
+}
+
+// previewPagePath returns the Astro preview page, or "" when the frontend does
+// not provide one. Resolved per request rather than cached so a --web-path can
+// be swapped without a restart.
+func (s *Server) previewPagePath() string {
+	if s.webPath == "" {
+		return ""
+	}
+
+	page := filepath.Join(s.webPath, "preview", "index.html")
+	if _, err := os.Stat(page); err != nil {
+		return ""
+	}
+
+	return page
 }
 
 func (s *Server) headHandler(w http.ResponseWriter, r *http.Request) {
@@ -323,6 +350,6 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 	// The transfer already succeeded, so bookkeeping must not be skipped
 	// just because the client hung up immediately afterwards.
 	if err := s.increaseDownload(context.WithoutCancel(r.Context()), token, filename); err != nil {
-		s.logger.Error("Could not record download", "token", token, "filename", filename, "error", err)
+		s.logger.Error("Could not record download", "token", maskToken(token), "filename", filename, "error", err)
 	}
 }
