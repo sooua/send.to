@@ -842,10 +842,18 @@ import CodeBlock from "../components/CodeBlock.astro";
                   <td class="px-4 py-2 font-mono text-xs">Request Entity Too Large</td>
                   <td class="px-4 py-2">File exceeds --max-upload-size limit</td>
                 </tr>
-                <tr>
+                <tr class="border-b border-border">
                   <td class="px-4 py-2 font-mono text-xs text-danger">500</td>
                   <td class="px-4 py-2 font-mono text-xs">Internal Server Error</td>
                   <td class="px-4 py-2">Storage or processing error</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2 font-mono text-xs text-danger">507</td>
+                  <td class="px-4 py-2 font-mono text-xs">Insufficient Storage</td>
+                  <td class="px-4 py-2"
+                    >The instance is at its --max-storage-size, or has no spool space left under
+                    --max-temp-size</td
+                  >
                 </tr>
               </tbody>
             </table>

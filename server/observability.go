@@ -89,6 +89,23 @@ func (s *Server) metricsHandler(w http.ResponseWriter, _ *http.Request) {
 		"# HELP sendto_uptime_seconds Seconds since process start.\n"+
 			"# TYPE sendto_uptime_seconds gauge\nsendto_uptime_seconds %d\n",
 		int64(time.Since(s.startedAt).Seconds()))
+
+	// Disk is the resource an operator has to watch, and a 507 only arrives
+	// once it is already too late to add more.
+	gauges := []struct {
+		name string
+		help string
+		val  int64
+	}{
+		{"sendto_storage_used_bytes", "Bytes held by the storage backend, as counted since startup.", s.quota.usage()},
+		{"sendto_storage_limit_bytes", "Total storage limit, 0 when unlimited.", s.maxStorageSize},
+		{"sendto_temp_used_bytes", "Bytes of spool files for uploads in progress.", s.tempUsage()},
+		{"sendto_temp_limit_bytes", "Spool space limit, 0 when unlimited.", s.maxTempSize},
+	}
+
+	for _, g := range gauges {
+		_, _ = fmt.Fprintf(w, "# HELP %s %s\n# TYPE %s gauge\n%s %d\n", g.name, g.help, g.name, g.name, g.val)
+	}
 }
 
 // qrHandler renders a QR code for a share link. The web UI has no QR library

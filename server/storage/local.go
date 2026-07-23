@@ -177,4 +177,27 @@ func (s *LocalStorage) Put(_ context.Context, token string, filename string, rea
 	return nil
 }
 
+// Usage adds up every file under the base directory. Called once at startup to
+// give the total-size quota a starting point, so walking the tree is cheap
+// enough — the running total is kept in memory from then on.
+func (s *LocalStorage) Usage(_ context.Context) (uint64, error) {
+	var total uint64
+
+	err := filepath.Walk(s.basedir, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			total += uint64(info.Size())
+		}
+		return nil
+	})
+
+	if err != nil && !os.IsNotExist(err) {
+		return 0, err
+	}
+
+	return total, nil
+}
+
 func (s *LocalStorage) IsRangeSupported() bool { return true }

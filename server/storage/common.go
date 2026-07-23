@@ -2,12 +2,19 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
 	"strconv"
 	"time"
 )
+
+// ErrUsageUnsupported is returned by Usage on a backend that cannot count what
+// it holds without an unreasonable number of API calls. A total-size quota
+// cannot be enforced against such a backend, and the server refuses to start
+// rather than pretend the limit is in force.
+var ErrUsageUnsupported = errors.New("this storage backend cannot report how much it holds")
 
 type Range struct {
 	Start        uint64
@@ -102,6 +109,9 @@ type Storage interface {
 	IsNotExist(err error) bool
 	// Purge cleans up the storage
 	Purge(ctx context.Context, days time.Duration) error
+	// Usage reports the total number of bytes stored, for the total-size
+	// quota. Backends that cannot answer return ErrUsageUnsupported.
+	Usage(ctx context.Context) (uint64, error)
 	// Whether storage supports Get with Range header
 	IsRangeSupported() bool
 	// Type returns the storage type

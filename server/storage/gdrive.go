@@ -331,6 +331,13 @@ func (s *GDrive) Put(ctx context.Context, token string, filename string, reader 
 	return nil
 }
 
+// Usage is not implemented for Google Drive, for the same reason as Storj:
+// the listing call it would need has never been exercised against a real
+// account here.
+func (s *GDrive) Usage(context.Context) (uint64, error) {
+	return 0, ErrUsageUnsupported
+}
+
 func (s *GDrive) IsRangeSupported() bool { return true }
 
 // Retrieve a token, saves the token, then returns the generated client.

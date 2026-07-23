@@ -201,6 +201,23 @@ func MaxUploadSize(kbytes int64) OptionFn {
 
 }
 
+// MaxStorageSize caps the total bytes an instance will hold. MAX_UPLOAD_SIZE
+// bounds one file; without this, a public instance is filled by uploading a
+// permitted file often enough.
+func MaxStorageSize(kbytes int64) OptionFn {
+	return func(srvr *Server) {
+		srvr.maxStorageSize = kbytes * 1024
+	}
+}
+
+// MaxTempSize caps the spool space under TEMP_PATH, which is what unfinished
+// resumable uploads occupy for up to a day.
+func MaxTempSize(kbytes int64) OptionFn {
+	return func(srvr *Server) {
+		srvr.maxTempSize = kbytes * 1024
+	}
+}
+
 // RateLimit set rate limit
 func RateLimit(requests int) OptionFn {
 	return func(srvr *Server) {
@@ -356,6 +373,9 @@ type Server struct {
 	lastSessionSweep time.Time
 
 	maxUploadSize     int64
+	maxStorageSize    int64
+	maxTempSize       int64
+	quota             *storageQuota
 	rateLimitRequests int
 	rateLimiter       *ipRateLimiter
 
@@ -550,6 +570,15 @@ func (s *Server) Run() {
 
 	if s.rateLimitRequests > 0 {
 		s.rateLimiter = newIPRateLimiter(s.rateLimitRequests, time.Minute)
+	}
+
+	// Seeded before the listener opens: an operator who configured a limit
+	// against a backend that cannot count is told at startup, not by silently
+	// serving without one.
+	if err := s.initStorageQuota(); err != nil {
+		s.logger.Error("Could not enforce the storage quota",
+			"storage_provider", s.storage.Type(), "error", err)
+		os.Exit(1)
 	}
 
 	// Uploads without a Content-Length, and every upload when the ClamAV

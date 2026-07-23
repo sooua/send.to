@@ -491,6 +491,8 @@ Every CLI flag has an environment-variable equivalent (`--listener` ↔ `LISTENE
 | `--provider` / `PROVIDER`         | —           | `local` \| `s3` \| `gdrive` \| `storj`        |
 | `--basedir` / `BASEDIR`           | —           | Storage root for the `local` provider         |
 | `--max-upload-size`               | `0`         | KB per upload; `0` = unlimited                |
+| `--max-storage-size`              | `0`         | KB an instance will hold in total; `0` = unlimited |
+| `--max-temp-size`                 | `0`         | KB of spool space for uploads in progress; `0` = unlimited |
 | `--rate-limit`                    | `0`         | Requests / minute / IP, shared across all routes |
 | `--temp-path` / `TEMP_PATH`       | system temp | Spool dir for uploads; must be disk-backed    |
 | `--purge-days`                    | `0`         | Delete uploads older than N days              |
@@ -500,6 +502,45 @@ Every CLI flag has an environment-variable equivalent (`--listener` ↔ `LISTENE
 | `--clamav-host`                   | empty       | e.g. `tcp://clamav:3310`                      |
 | `--virustotal-key`                | empty       | Enables `/{file}/virustotal`                  |
 | `--lets-encrypt-hosts`            | empty       | Comma-separated hostnames for ACME            |
+
+### Limits worth setting on a public instance
+
+`MAX_UPLOAD_SIZE` bounds one upload, which is no bound at all: the same
+permitted file uploaded often enough fills the disk. Two totals close that.
+
+| | |
+|---|---|
+| `MAX_STORAGE_SIZE` | Total bytes (KB) the storage backend may hold |
+| `MAX_TEMP_SIZE` | Total bytes (KB) of spool space for uploads in progress |
+
+Both answer **507 Insufficient Storage** rather than failing halfway. A
+resumable upload is checked twice — once against its declared total when the
+session is opened, so a doomed transfer is refused before a byte moves, and
+again on each chunk, because several sessions can be opened before any of them
+fills anything.
+
+`MAX_TEMP_SIZE` is the one that matters against abuse: an unfinished session is
+kept for 24 hours by design, so without it anyone can open sessions, send almost
+all of each, and leave the bytes sitting on `TEMP_PATH` — which in the shipped
+compose file is the data volume.
+
+Two properties to know before relying on them:
+
+- **`MAX_STORAGE_SIZE` is a counter, not a measurement.** It is seeded from the
+  backend at startup and then tracked in memory, because measuring means listing
+  the bucket. It drifts if files are removed behind the server's back, and a
+  restart re-seeds it. `local` and `s3` can be counted; `gdrive` and `storj`
+  cannot, and an instance configured with a limit on those backends **refuses to
+  start** rather than pretend a limit is in force.
+- **Both are per process.** Several replicas behind a load balancer each enforce
+  their own total. Resumable uploads are single-instance for the same reason:
+  the session spool lives on local disk, so a session opened on one replica
+  cannot be continued on another. Use one instance, or a sticky-session
+  balancer with a shared spool volume.
+
+`/metrics` exposes `sendto_storage_used_bytes`, `sendto_storage_limit_bytes`,
+`sendto_temp_used_bytes` and `sendto_temp_limit_bytes`, which is what to alert
+on — a 507 is the point at which it is already too late.
 
 The [`docker-compose.yml`](./docker-compose.yml) + [`.env.example`](./.env.example) combo documents everything you need for container deployments.
 

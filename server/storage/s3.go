@@ -180,6 +180,32 @@ func (s *S3Storage) Put(ctx context.Context, token string, filename string, read
 	return
 }
 
+// Usage sums the bucket, one ListObjectsV2 page at a time. It is called once at
+// startup: on a large bucket this is thousands of keys, but the alternative —
+// a quota that silently does nothing — is worse.
+func (s *S3Storage) Usage(ctx context.Context) (uint64, error) {
+	var total uint64
+
+	paginator := s3.NewListObjectsV2Paginator(s.s3, &s3.ListObjectsV2Input{
+		Bucket: aws.String(s.bucket),
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return 0, err
+		}
+
+		for _, object := range page.Contents {
+			if object.Size != nil {
+				total += uint64(*object.Size)
+			}
+		}
+	}
+
+	return total, nil
+}
+
 func (s *S3Storage) IsRangeSupported() bool { return true }
 
 func getAwsConfig(ctx context.Context, accessKey, secretKey string) (aws.Config, error) {

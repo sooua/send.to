@@ -167,6 +167,14 @@ func (s *StorjStorage) Put(ctx context.Context, token string, filename string, r
 	return err
 }
 
+// Usage is not implemented for Storj: counting the bucket means listing it
+// with system metadata, and this fork has no Storj credentials to verify such
+// code against. Reporting the limitation is honest; guessing at an untested
+// listing call is not.
+func (s *StorjStorage) Usage(context.Context) (uint64, error) {
+	return 0, ErrUsageUnsupported
+}
+
 func (s *StorjStorage) IsRangeSupported() bool { return true }
 
 // IsNotExist indicates if a file doesn't exist on storage

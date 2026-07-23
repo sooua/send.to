@@ -488,12 +488,12 @@ func (s *Server) readMetadata(ctx context.Context, token, filename string) (meta
 	}
 
 	if metadata.MaxDownloads != -1 && metadata.Downloads >= metadata.MaxDownloads {
-		s.purgeExpired(ctx, token, filename, metadata.OwnerHash)
+		s.purgeExpired(ctx, token, filename, metadata)
 		return metadata, errors.New("maxDownloads expired")
 	}
 
 	if !metadata.MaxDate.IsZero() && time.Now().After(metadata.MaxDate) {
-		s.purgeExpired(ctx, token, filename, metadata.OwnerHash)
+		s.purgeExpired(ctx, token, filename, metadata)
 		return metadata, errors.New("maxDate expired")
 	}
 
@@ -529,7 +529,7 @@ func (s *Server) increaseDownload(ctx context.Context, token, filename string) e
 	}
 
 	if metadata.Downloads >= metadata.MaxDownloads {
-		s.purgeExpired(ctx, token, filename, metadata.OwnerHash)
+		s.purgeExpired(ctx, token, filename, metadata)
 	}
 
 	return nil
@@ -538,13 +538,14 @@ func (s *Server) increaseDownload(ctx context.Context, token, filename string) e
 // purgeExpired removes an upload that has run out of downloads or days.
 // Best effort: on failure the blob is simply left for the scheduled purge,
 // so the error is logged instead of failing the request that noticed it.
-func (s *Server) purgeExpired(ctx context.Context, token, filename, ownerHash string) {
+func (s *Server) purgeExpired(ctx context.Context, token, filename string, m metadata) {
 	if err := s.storage.Delete(ctx, token, filename); err != nil && !s.storage.IsNotExist(err) {
 		s.logger.Error("Could not delete expired upload", "token", maskToken(token), "filename", filename, "error", err)
 		return
 	}
 
-	s.forgetOwnership(ctx, ownerHash, token, filename)
+	s.quota.sub(m.ContentLength)
+	s.forgetOwnership(ctx, m.OwnerHash, token, filename)
 
 	s.metrics.expiredPurged.Add(1)
 }
@@ -612,6 +613,7 @@ func (s *Server) deleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.quota.sub(m.ContentLength)
 	s.forgetOwnership(r.Context(), m.OwnerHash, token, filename)
 
 	s.metrics.deletes.Add(1)

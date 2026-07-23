@@ -475,6 +475,8 @@ Web UI 的 `/api-docs` 页面有实时 API 参考。
 | `--basedir` / `BASEDIR`             | —         | `local` 存储后端的数据目录                     |
 | `--max-upload-size`                 | `0`       | 每次上传大小上限（KB）；`0` = 无限             |
 | `--temp-path` / `TEMP_PATH`         | 系统临时目录 | 上传暂存目录，必须是磁盘路径                |
+| `--max-storage-size`              | `0`          | 实例最多存多少 KB；`0` = 不限            |
+| `--max-temp-size`                 | `0`          | 未完成上传最多占多少 KB 临时空间；`0` = 不限 |
 | `--rate-limit`                      | `0`       | 每 IP 每分钟最大请求数，所有路由共用同一份配额 |
 | `--purge-days`                      | `0`       | 清理 N 天前的旧文件                            |
 | `--shutdown-timeout`                | `30s`     | 退出时等待进行中请求完成的最长时间             |
@@ -483,6 +485,38 @@ Web UI 的 `/api-docs` 页面有实时 API 参考。
 | `--clamav-host`                     | 空        | 例如 `tcp://clamav:3310`                       |
 | `--virustotal-key`                  | 空        | 启用 `/{file}/virustotal` 端点                 |
 | `--lets-encrypt-hosts`              | 空        | Let's Encrypt 自动签发的域名列表               |
+
+### 公网实例值得设的两个上限
+
+`MAX_UPLOAD_SIZE` 只限制单个文件，等于没限制：同一个合规大小的文件传够多次就
+能把磁盘填满。两个总量上限补上这个缺口。
+
+| | |
+|---|---|
+| `MAX_STORAGE_SIZE` | 存储后端最多保存多少字节（KB） |
+| `MAX_TEMP_SIZE` | 未完成上传最多占用多少临时空间（KB） |
+
+两者都返回 **507 Insufficient Storage**，而不是传到一半才失败。续传上传会被检查
+两次：开会话时按声明的总大小检查一次，让注定放不下的传输在传第一个字节之前就被
+拒绝；每个分片再检查一次，因为多个会话可能在都还没占空间时就都通过了第一次检查。
+
+真正防滥用的是 `MAX_TEMP_SIZE`：未完成的会话按设计要保留 24 小时，没有这个上限，
+任何人都可以不断开会话、每个传到接近完成然后放着，让字节堆在 `TEMP_PATH` 上 ——
+而在自带的 compose 配置里，那就是数据卷本身。
+
+依赖它们之前需要知道两点：
+
+- **`MAX_STORAGE_SIZE` 是计数器，不是实测值。** 启动时从后端取一次基线，之后在
+  内存里累加，因为实测意味着列举整个 bucket。如果有人绕过服务端删文件，它会漂移，
+  重启会重新取基线。`local` 和 `s3` 能统计；`gdrive` 和 `storj` 不能 —— 在这两个
+  后端上配了上限，进程会**拒绝启动**，而不是假装限制生效。
+- **两者都是单进程范围的。** 负载均衡后面的多个副本各算各的。续传上传同样只支持
+  单实例：会话的临时文件在本地磁盘上，在一个副本上开的会话没法在另一个副本上续。
+  请用单实例，或者用 sticky session + 共享临时卷。
+
+`/metrics` 暴露了 `sendto_storage_used_bytes`、`sendto_storage_limit_bytes`、
+`sendto_temp_used_bytes`、`sendto_temp_limit_bytes` —— 该对这些做告警，等到 507
+出现时已经晚了。
 
 容器部署全部配置见 [`docker-compose.yml`](./docker-compose.yml) 和 [`.env.example`](./.env.example)。
 

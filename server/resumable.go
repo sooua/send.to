@@ -225,6 +225,16 @@ func (s *Server) createUploadSessionHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Both quotas are checked against the declared total, so a session that
+	// cannot possibly be stored is refused before a byte is transferred.
+	if !s.checkStorageQuota(w, total) {
+		return
+	}
+
+	if !s.checkTempQuota(w, total) {
+		return
+	}
+
 	contentType := contentTypeForFilename(vars["filename"])
 
 	// Validate the limit headers now; the same values are applied at finalise.
@@ -417,6 +427,13 @@ func (s *Server) patchUploadSessionHandler(w http.ResponseWriter, r *http.Reques
 
 	want := end - start + 1
 
+	// Measured per chunk rather than reserved up front: several sessions can
+	// pass the check at creation and only fill the disk as they transfer.
+	if !s.checkTempQuota(w, want) {
+		_ = f.Close()
+		return
+	}
+
 	if _, err := f.Seek(offset, io.SeekStart); err != nil {
 		_ = f.Close()
 		s.logger.Error("Could not seek upload spool file", "error", err)
@@ -495,6 +512,10 @@ func (s *Server) finishUploadSession(w http.ResponseWriter, r *http.Request, ses
 	if err != nil {
 		s.metrics.uploadErrors.Add(1)
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if !s.checkStorageQuota(w, sess.Total) {
 		return
 	}
 

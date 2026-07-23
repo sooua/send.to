@@ -226,6 +226,18 @@ var globalFlags = []cli.Flag{
 		Value:   0,
 		EnvVars: []string{"MAX_UPLOAD_SIZE"},
 	},
+	&cli.Int64Flag{
+		Name:    "max-storage-size",
+		Usage:   "max total size of stored uploads, in kilobytes (0 = unlimited)",
+		Value:   0,
+		EnvVars: []string{"MAX_STORAGE_SIZE"},
+	},
+	&cli.Int64Flag{
+		Name:    "max-temp-size",
+		Usage:   "max total size of spool files under --temp-path, in kilobytes (0 = unlimited)",
+		Value:   0,
+		EnvVars: []string{"MAX_TEMP_SIZE"},
+	},
 	&cli.StringFlag{
 		Name:    "lets-encrypt-hosts",
 		Usage:   "host1, host2",
@@ -432,6 +444,14 @@ func New() *Cmd {
 
 		if v := c.Int64("max-upload-size"); v > 0 {
 			options = append(options, server.MaxUploadSize(v))
+		}
+
+		if v := c.Int64("max-storage-size"); v > 0 {
+			options = append(options, server.MaxStorageSize(v))
+		}
+
+		if v := c.Int64("max-temp-size"); v > 0 {
+			options = append(options, server.MaxTempSize(v))
 		}
 
 		if v := c.Int("rate-limit"); v > 0 {

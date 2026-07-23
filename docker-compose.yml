@@ -40,6 +40,8 @@ services:
 
       # Limits & lifecycle
       MAX_UPLOAD_SIZE: "${MAX_UPLOAD_SIZE:-0}"   # 0 = unlimited, value in KB
+      MAX_STORAGE_SIZE: "${MAX_STORAGE_SIZE:-0}" # total stored, KB, 0 = unlimited
+      MAX_TEMP_SIZE: "${MAX_TEMP_SIZE:-0}"       # spool for uploads in progress, KB
       RATE_LIMIT: "${RATE_LIMIT:-0}"             # req/min per IP, 0 = off
       PURGE_DAYS: "${PURGE_DAYS:-30}"
       PURGE_INTERVAL: "${PURGE_INTERVAL:-1}"

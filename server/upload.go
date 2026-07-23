@@ -137,6 +137,12 @@ func (s *Server) storeMultipartFile(w http.ResponseWriter, r *http.Request, toke
 	}
 	defer storage.CloseCheck(f)
 
+	// The part is spooled to disk before its length is known, so the only
+	// check available here is whether there is any room left at all.
+	if !s.checkTempQuota(w, 0) {
+		return result, errors.New("temporary space exhausted")
+	}
+
 	file, err := os.CreateTemp(s.tempPath, "sendto-upload-")
 	if err != nil {
 		s.metrics.uploadErrors.Add(1)
@@ -170,6 +176,10 @@ func (s *Server) storeMultipartFile(w http.ResponseWriter, r *http.Request, toke
 
 	if err := s.prescan(w, file.Name()); err != nil {
 		return result, err
+	}
+
+	if !s.checkStorageQuota(w, contentLength) {
+		return result, errors.New("storage quota exhausted")
 	}
 
 	metadata, err := metadataForRequest(contentType, contentLength, s.randomTokenLength, r)
@@ -209,6 +219,12 @@ func (s *Server) putHandler(w http.ResponseWriter, r *http.Request) {
 	var reader io.Reader = r.Body
 
 	if contentLength < 1 || s.performClamavPrescan {
+		// Length unknown until it has been spooled, so this can only ask
+		// whether there is room for another upload in progress at all.
+		if !s.checkTempQuota(w, contentLength) {
+			return
+		}
+
 		file, err := os.CreateTemp(s.tempPath, "sendto-upload-")
 		defer s.cleanTmpFile(file)
 		if err != nil {
@@ -258,6 +274,10 @@ func (s *Server) putHandler(w http.ResponseWriter, r *http.Request) {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Warn("Empty content-length")
 		http.Error(w, "Could not upload empty file", http.StatusBadRequest)
+		return
+	}
+
+	if !s.checkStorageQuota(w, contentLength) {
 		return
 	}
 
@@ -367,6 +387,8 @@ func (s *Server) store(ctx context.Context, token, filename string, reader io.Re
 		}
 		return err
 	}
+
+	s.quota.add(contentLength)
 
 	s.metrics.uploads.Add(1)
 	s.metrics.uploadBytes.Add(uint64(contentLength))
