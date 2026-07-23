@@ -19,10 +19,10 @@ require (
 	github.com/tg123/go-htpasswd v1.2.4
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce
 	github.com/urfave/cli/v2 v2.27.7
-	golang.org/x/crypto v0.48.0
-	golang.org/x/net v0.50.0
+	golang.org/x/crypto v0.51.0
+	golang.org/x/net v0.55.0
 	golang.org/x/oauth2 v0.35.0
-	golang.org/x/text v0.34.0
+	golang.org/x/text v0.39.0
 	golang.org/x/time v0.14.0
 	google.golang.org/api v0.265.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
@@ -82,8 +82,8 @@ require (
 	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/metric v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
-	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.41.1-0.20260303015103-eaaaaee1dc1a // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
 	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
