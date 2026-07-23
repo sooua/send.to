@@ -61,7 +61,9 @@ curl https://send.to/aB3cD4eF/build.tar.gz -o build.tar.gz
 | **鉴权** | HTTP Basic、htpasswd、IP 白 / 黑名单 |
 | **安全加固** | 严格 CSP、COOP/CORP、HSTS、slow-loris 超时、常数时间密码比较、按 IP 限流 |
 | **优雅关闭** | SIGINT/SIGTERM → `Shutdown(ctx)` → 正在进行的上传完整收尾 |
-| **现代 Web UI** | Astro 5 + React 19 + Tailwind 4，拖拽上传、剩余时间估算、可中止、多语言（English / 中文 / 日本語）|
+| **JSON API** | 带 `Accept: application/json` 即返回下载链接、删除链接、大小、过期时间 |
+| **可观测性** | `/health`（JSON）与 `/metrics`（Prometheus 文本格式） |
+| **现代 Web UI** | Astro 5 + React 19 + Tailwind 4：多文件队列、粘贴上传、单文件 ETA、失败重试、有效期 / 下载次数 / 加密密码选项、二维码，以及保存删除链接的本地上传历史 |
 
 ---
 
@@ -204,9 +206,11 @@ send() { curl --progress-bar --upload-file "$1" "https://send.to/$(basename "$1"
 | `HEAD`   | `/{token}/{filename}`               | 只取元数据                   |
 | `GET`    | `/({files}).{zip,tar,tar.gz}`       | 将多个文件打包下载           |
 | `DELETE` | `/{token}/{filename}/{delToken}`    | 删除文件                     |
-| `PUT`    | `/{filename}/scan`                  | ClamAV 扫描                  |
-| `PUT`    | `/{filename}/virustotal`            | 上传到 VirusTotal            |
-| `GET`    | `/health.html`                      | 健康检查                     |
+| `PUT`    | `/{filename}/scan`                  | ClamAV 扫描（需鉴权 + 限流） |
+| `PUT`    | `/{filename}/virustotal`            | 上传到 VirusTotal（需鉴权 + 限流） |
+| `GET`    | `/health` · `/health.html`          | 健康检查（`Accept: application/json` 返回 JSON） |
+| `GET`    | `/metrics`                          | Prometheus 指标              |
+| `GET`    | `/qr?url=`                          | 生成本站分享链接的二维码 PNG |
 
 ### 请求头 / 响应头
 
@@ -223,6 +227,38 @@ send() { curl --progress-bar --upload-file "$1" "https://send.to/$(basename "$1"
 | `X-Remaining-Days`      | 还剩多少天过期                                       |
 | `X-Remaining-Downloads` | 还剩多少次下载配额                                   |
 
+### JSON 响应
+
+上传时带上 `Accept: application/json`，就能拿到结构化结果，不用再去抠
+`X-Url-Delete` 响应头：
+
+```bash
+curl -H "Accept: application/json" -H "Max-Days: 7"      --upload-file notes.md https://send.to/notes.md
+```
+
+```json
+{
+  "url": "https://send.to/aB3cD4eF/notes.md",
+  "delete_url": "https://send.to/aB3cD4eF/notes.md/9xK…",
+  "filename": "notes.md",
+  "size": 4096,
+  "content_type": "text/x-markdown",
+  "encrypted": false,
+  "expires_at": "2026-07-30T08:06:49Z"
+}
+```
+
+Multipart `POST` 返回 `{"files": [ … ]}`，每个文件一个对象。
+
+### 下载计数规则
+
+`Max-Downloads` 只统计**完整传输完成**的下载：
+
+- **Range 请求不计数。** `curl -C -` 断点续传、视频拖拽进度、字节范围探测都
+  不会消耗配额。
+- 传输中途失败或被中断的不计数。
+- 配额或 `Max-Days` 用尽时，文件会**立即从存储中删除**，不再等 `--purge-days`。
+
 Web UI 的 `/api-docs` 页面有实时 API 参考。
 
 ---
@@ -238,7 +274,8 @@ Web UI 的 `/api-docs` 页面有实时 API 参考。
 | `--provider` / `PROVIDER`           | —         | `local` \| `s3` \| `gdrive` \| `storj`         |
 | `--basedir` / `BASEDIR`             | —         | `local` 存储后端的数据目录                     |
 | `--max-upload-size`                 | `0`       | 每次上传大小上限（KB）；`0` = 无限             |
-| `--rate-limit`                      | `0`       | 每 IP 每分钟最大请求数（PUT/POST/GET）         |
+| `--temp-path` / `TEMP_PATH`         | 系统临时目录 | 上传暂存目录，必须是磁盘路径                |
+| `--rate-limit`                      | `0`       | 每 IP 每分钟最大请求数，所有路由共用同一份配额 |
 | `--purge-days`                      | `0`       | 清理 N 天前的旧文件                            |
 | `--shutdown-timeout`                | `30s`     | 退出时等待进行中请求完成的最长时间             |
 | `--http-auth-user` / `_pass`        | 空        | HTTP Basic Auth 用户名 / 密码                  |
@@ -287,7 +324,11 @@ files.example.com {
 - [ ] 务必走 HTTPS（浏览器在非安全上下文会拒绝 `clipboard.writeText`）。
 - [ ] 不允许匿名上传的实例打开 Basic Auth。
 - [ ] 存储卷挂在有配额的分区上。
-- [ ] 监控 `HEALTHCHECK` 状态（`docker ps`）或定期打 `/health.html`。
+- [ ] 监控 `HEALTHCHECK` 状态（`docker ps`）或定期打 `/health`。
+- [ ] 采集 `/metrics`（上传数、下载数、字节数、429 次数、过期清理数）。
+- [ ] 把 `TEMP_PATH` 放在磁盘路径上 —— 没有 `Content-Length` 的上传，以及开启
+      ClamAV 预扫描时的所有上传，都会先落盘到这里。compose 已把它指向数据卷，
+      因为容器里的 `/tmp` 是很小的 tmpfs。
 
 ### 升级
 

@@ -61,7 +61,9 @@ One static Go binary. One 52 MB Docker image. No database. No account. Your file
 | **Auth** | HTTP Basic, htpasswd, IP allow/deny lists |
 | **Hardened** | Strict CSP, COOP/CORP, HSTS, slow-loris timeouts, constant-time auth compare, per-IP rate limiting |
 | **Graceful shutdown** | SIGINT/SIGTERM → `Shutdown(ctx)` → in-flight uploads complete |
-| **Modern web UI** | Astro 5 + React 19 + Tailwind 4, drag-and-drop, ETA, abortable upload, i18n (English / 中文 / 日本語) |
+| **JSON API** | `Accept: application/json` returns url, delete url, size, expiry |
+| **Observability** | `/health` (JSON) and `/metrics` (Prometheus text format) |
+| **Modern web UI** | Astro 5 + React 19 + Tailwind 4: multi-file queue, paste-to-upload, per-file ETA, retry, expiry / download-limit / password controls, QR codes, and a local upload history that keeps your delete links |
 
 ---
 
@@ -204,9 +206,11 @@ send() { curl --progress-bar --upload-file "$1" "https://send.to/$(basename "$1"
 | `HEAD` | `/{token}/{filename}`              | Metadata only                   |
 | `GET`  | `/({files}).{zip,tar,tar.gz}`      | Combine files into an archive   |
 | `DELETE` | `/{token}/{filename}/{delToken}` | Delete a file                   |
-| `PUT`  | `/{filename}/scan`                 | ClamAV scan                     |
-| `PUT`  | `/{filename}/virustotal`           | VirusTotal submission           |
-| `GET`  | `/health.html`                     | Health check                    |
+| `PUT`  | `/{filename}/scan`                 | ClamAV scan (auth + rate limited) |
+| `PUT`  | `/{filename}/virustotal`           | VirusTotal submission (auth + rate limited) |
+| `GET`  | `/health` · `/health.html`         | Health check (JSON on `Accept: application/json`) |
+| `GET`  | `/metrics`                         | Prometheus counters             |
+| `GET`  | `/qr?url=`                         | QR code PNG for a share link on this host |
 
 ### Headers
 
@@ -223,6 +227,39 @@ send() { curl --progress-bar --upload-file "$1" "https://send.to/$(basename "$1"
 | `X-Remaining-Days`     | Days until auto-expiry                              |
 | `X-Remaining-Downloads`| Downloads remaining under the cap                   |
 
+### JSON responses
+
+Send `Accept: application/json` on an upload to get structured output instead of
+a bare URL — no more scraping the `X-Url-Delete` header:
+
+```bash
+curl -H "Accept: application/json" -H "Max-Days: 7"      --upload-file notes.md https://send.to/notes.md
+```
+
+```json
+{
+  "url": "https://send.to/aB3cD4eF/notes.md",
+  "delete_url": "https://send.to/aB3cD4eF/notes.md/9xK…",
+  "filename": "notes.md",
+  "size": 4096,
+  "content_type": "text/x-markdown",
+  "encrypted": false,
+  "expires_at": "2026-07-30T08:06:49Z"
+}
+```
+
+A multipart `POST` returns `{"files": [ … ]}` with one object per file.
+
+### Download accounting
+
+`Max-Downloads` counts *completed* transfers only:
+
+- **Range requests never count.** `curl -C -`, video scrubbing and byte-range
+  probes can resume a file freely without eating the budget.
+- A transfer that fails or is aborted mid-body does not count.
+- When the budget or `Max-Days` runs out the object is **deleted from storage**
+  immediately, rather than waiting for `--purge-days`.
+
 A live reference is rendered in the web UI at `/api-docs`.
 
 ---
@@ -238,7 +275,8 @@ Every CLI flag has an environment-variable equivalent (`--listener` ↔ `LISTENE
 | `--provider` / `PROVIDER`         | —           | `local` \| `s3` \| `gdrive` \| `storj`        |
 | `--basedir` / `BASEDIR`           | —           | Storage root for the `local` provider         |
 | `--max-upload-size`               | `0`         | KB per upload; `0` = unlimited                |
-| `--rate-limit`                    | `0`         | Requests / minute / IP (PUT/POST/GET)         |
+| `--rate-limit`                    | `0`         | Requests / minute / IP, shared across all routes |
+| `--temp-path` / `TEMP_PATH`       | system temp | Spool dir for uploads; must be disk-backed    |
 | `--purge-days`                    | `0`         | Delete uploads older than N days              |
 | `--shutdown-timeout`              | `30s`       | Grace period for in-flight requests on quit   |
 | `--http-auth-user` / `_pass`      | empty       | HTTP Basic Auth credentials                   |
@@ -287,7 +325,12 @@ Or automatic Let's Encrypt:
 - [ ] Always front with HTTPS (browsers refuse `clipboard.writeText` on insecure origins).
 - [ ] Enable Basic Auth on instances that must not accept anonymous uploads.
 - [ ] Mount the storage volume on a partition with a quota.
-- [ ] Monitor the `HEALTHCHECK` status (`docker ps`) or poll `/health.html`.
+- [ ] Monitor the `HEALTHCHECK` status (`docker ps`) or poll `/health`.
+- [ ] Scrape `/metrics` (uploads, downloads, bytes, 429s, expired purges).
+- [ ] Keep `TEMP_PATH` on a disk-backed path — uploads without a
+      `Content-Length`, and every upload when the ClamAV prescan is on, are
+      spooled there first. The compose file points it at the data volume
+      because the container's `/tmp` is a small tmpfs.
 
 ### Updating
 

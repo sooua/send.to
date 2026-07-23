@@ -6,18 +6,26 @@ import CodeBlock from "../components/CodeBlock.astro";
 <BaseLayout title="API Documentation — send.to">
   <section class="border-b border-border bg-background">
     <div class="mx-auto max-w-5xl px-6 py-20 text-center sm:py-28">
-      <p class="mb-4 text-[13px] font-medium uppercase tracking-wide text-[#c96442]">API reference</p>
-      <h1 class="font-serif text-[48px] font-medium leading-tight text-primary sm:text-[64px]" data-i18n="api.title">
+      <p class="mb-4 text-[13px] font-medium uppercase tracking-wide text-[#c96442]">
+        API reference
+      </p>
+      <h1
+        class="font-serif text-[48px] font-medium leading-tight text-primary sm:text-[64px]"
+        data-i18n="api.title"
+      >
         Everything is a<br />well-named header.
       </h1>
-      <p class="mx-auto mt-6 max-w-2xl text-[18px] leading-relaxed text-muted" data-i18n="api.subtitle">
-        send.to provides a simple HTTP API for uploading, downloading, and managing files. All endpoints accept standard HTTP methods and can be used with curl or any HTTP client.
+      <p
+        class="mx-auto mt-6 max-w-2xl text-[18px] leading-relaxed text-muted"
+        data-i18n="api.subtitle"
+      >
+        send.to provides a simple HTTP API for uploading, downloading, and managing files. All
+        endpoints accept standard HTTP methods and can be used with curl or any HTTP client.
       </p>
     </div>
   </section>
 
   <div class="mx-auto max-w-6xl px-6 py-16">
-
     <div class="flex flex-col gap-8 lg:flex-row">
       <!-- Sidebar Navigation -->
       <nav class="shrink-0 lg:sticky lg:top-20 lg:h-fit lg:w-48">
@@ -90,7 +98,8 @@ import CodeBlock from "../components/CodeBlock.astro";
           </h2>
           <p class="mb-4 text-sm text-muted" data-i18n="api.uploadDesc">
             Upload a file using PUT or POST. The response contains the download URL. The
-            X-Url-Delete response header contains the deletion URL.
+            X-Url-Delete response header contains the deletion URL. Send Accept: application/json to
+            get a structured response instead.
           </p>
 
           <div class="mb-4 overflow-x-auto rounded-lg border border-border">
@@ -160,6 +169,9 @@ import CodeBlock from "../components/CodeBlock.astro";
           <p class="mb-4 text-sm text-muted" data-i18n="api.downloadDesc">
             Download or preview a file. Supports range requests for resumable downloads. The default
             GET endpoint auto-detects preview vs download based on Accept and Referer headers.
+            Max-Downloads counts completed transfers only: Range requests (resumed downloads, media
+            seeking) never consume the budget, and neither do aborted transfers. Once the budget or
+            Max-Days runs out the file is deleted from storage immediately.
           </p>
 
           <div class="mb-4 overflow-x-auto rounded-lg border border-border">
@@ -329,8 +341,50 @@ import CodeBlock from "../components/CodeBlock.astro";
 
           <p class="mb-4 text-xs text-muted-dark" data-i18n="api.scanNote">
             When --perform-clamav-prescan is enabled, all uploads are automatically scanned before
-            being accepted. Infected files are rejected with HTTP 412.
+            being accepted. Infected files are rejected with HTTP 412. Both scan endpoints require
+            the same authentication and rate limit as an upload.
           </p>
+        </section>
+
+        <!-- Operations -->
+        <section id="ops" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.ops">
+            Health &amp; Metrics
+          </h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.opsDesc">
+            Endpoints for probes, dashboards and share-link QR codes.
+          </p>
+
+          <div class="mb-4 overflow-x-auto rounded-lg border border-border">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-surface">
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Method</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Path</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                </tr>
+              </thead>
+              <tbody class="text-muted">
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">/health</td>
+                  <td class="px-4 py-2"
+                    >Status, version, storage backend, uptime (JSON on request)</td
+                  >
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">/metrics</td>
+                  <td class="px-4 py-2">Prometheus text exposition format</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">/qr?url=&amp;size=</td>
+                  <td class="px-4 py-2">PNG QR code for a share link on this host</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <!-- Request Headers -->
