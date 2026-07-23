@@ -48,6 +48,12 @@ func (s *Server) scanHandler(w http.ResponseWriter, r *http.Request) {
 
 	s.logger.Info("Scanning", "filename", filename, "content_length", contentLength, "content_type", contentType)
 
+	// The body is spooled to TEMP_PATH, which in the shipped container is a
+	// small tmpfs. Without this cap a single request can fill it.
+	if s.maxUploadSize > 0 {
+		r.Body = http.MaxBytesReader(w, r.Body, s.maxUploadSize)
+	}
+
 	file, err := os.CreateTemp(s.tempPath, "clamav-")
 	defer s.cleanTmpFile(file)
 	if err != nil {

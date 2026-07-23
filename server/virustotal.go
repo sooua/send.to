@@ -43,6 +43,15 @@ func (s *Server) virusTotalHandler(w http.ResponseWriter, r *http.Request) {
 
 	s.logger.Info("Submitting to VirusTotal", "filename", filename, "content_length", contentLength, "content_type", contentType)
 
+	if s.VirusTotalKey == "" {
+		http.Error(w, "VirusTotal is not configured on this server", http.StatusNotImplemented)
+		return
+	}
+
+	if s.maxUploadSize > 0 {
+		r.Body = http.MaxBytesReader(w, r.Body, s.maxUploadSize)
+	}
+
 	vt, err := virustotal.NewVirusTotal(s.VirusTotalKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

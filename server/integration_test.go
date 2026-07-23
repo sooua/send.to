@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -14,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sooua/send.to/server/storage"
 	"github.com/gorilla/mux"
+	"github.com/sooua/send.to/server/storage"
 )
 
 // newTestServer creates a Server backed by local storage in a temp directory.
@@ -327,30 +328,137 @@ func TestCheckMetadataMaxDownloads(t *testing.T) {
 
 	ctx := context.Background()
 
-	// First download should succeed
-	meta, err := srvr.checkMetadata(ctx, tok, filename, true)
+	// First download
+	if _, err := srvr.checkMetadata(ctx, tok, filename); err != nil {
+		t.Fatalf("first download rejected: %v", err)
+	}
+	if err := srvr.increaseDownload(ctx, tok, filename); err != nil {
+		t.Fatalf("recording first download failed: %v", err)
+	}
+
+	meta, err := srvr.checkMetadata(ctx, tok, filename)
 	if err != nil {
-		t.Fatalf("first download failed: %v", err)
+		t.Fatalf("second download rejected: %v", err)
 	}
 	if meta.Downloads != 1 {
 		t.Errorf("downloads = %d, want 1", meta.Downloads)
 	}
 
-	// Second download should succeed
-	meta, err = srvr.checkMetadata(ctx, tok, filename, true)
-	if err != nil {
-		t.Fatalf("second download failed: %v", err)
-	}
-	if meta.Downloads != 2 {
-		t.Errorf("downloads = %d, want 2", meta.Downloads)
+	// Second download exhausts the budget, which also deletes the upload.
+	if err := srvr.increaseDownload(ctx, tok, filename); err != nil {
+		t.Fatalf("recording second download failed: %v", err)
 	}
 
 	// Third download should fail
-	_, err = srvr.checkMetadata(ctx, tok, filename, true)
-	if err == nil {
+	if _, err := srvr.checkMetadata(ctx, tok, filename); err == nil {
 		t.Error("expected error for exceeded max downloads")
 	}
+
+	// The blob must not survive its own expiry.
+	if _, err := srvr.storage.Head(ctx, tok, filename); err == nil {
+		t.Error("expected exhausted upload to be deleted from storage")
+	}
 }
+
+// A Range request is one slice of a resumed transfer, so it must not consume
+// a download from the Max-Downloads budget.
+func TestGetHandlerRangeDoesNotCountAsDownload(t *testing.T) {
+	srvr, tmpDir := newTestServer(t)
+	defer os.RemoveAll(tmpDir)
+
+	filename := "ranged.txt"
+	fileContent := "0123456789abcdefghij"
+
+	req := httptest.NewRequest("PUT", "/"+filename, strings.NewReader(fileContent))
+	req.ContentLength = int64(len(fileContent))
+	req.Header.Set("Max-Downloads", "1")
+	req = mux.SetURLVars(req, map[string]string{"filename": filename})
+
+	w := httptest.NewRecorder()
+	srvr.putHandler(w, req)
+
+	body, _ := io.ReadAll(w.Result().Body)
+	uploadURL := strings.TrimSpace(string(body))
+	parts := strings.Split(strings.TrimPrefix(uploadURL, "http://"), "/")
+	tok := parts[len(parts)-2]
+
+	// Two partial reads of the same file.
+	for i := 0; i < 2; i++ {
+		getReq := httptest.NewRequest("GET", "/"+tok+"/"+filename, nil)
+		getReq.Header.Set("Range", "bytes=0-4")
+		getReq = mux.SetURLVars(getReq, map[string]string{"token": tok, "filename": filename})
+
+		getW := httptest.NewRecorder()
+		srvr.getHandler(getW, getReq)
+
+		if code := getW.Result().StatusCode; code != http.StatusPartialContent {
+			t.Fatalf("range request %d returned %d, want 206", i, code)
+		}
+	}
+
+	meta, err := srvr.checkMetadata(context.Background(), tok, filename)
+	if err != nil {
+		t.Fatalf("upload should still be available after range requests: %v", err)
+	}
+	if meta.Downloads != 0 {
+		t.Errorf("downloads = %d after range requests, want 0", meta.Downloads)
+	}
+
+	// A full download does count, and exhausts the single-download budget.
+	getReq := httptest.NewRequest("GET", "/"+tok+"/"+filename, nil)
+	getReq = mux.SetURLVars(getReq, map[string]string{"token": tok, "filename": filename})
+	srvr.getHandler(httptest.NewRecorder(), getReq)
+
+	if _, err := srvr.checkMetadata(context.Background(), tok, filename); err == nil {
+		t.Error("expected upload to be exhausted after one full download")
+	}
+}
+
+// A download that fails partway through must not consume the budget.
+func TestGetHandlerFailedTransferDoesNotCountAsDownload(t *testing.T) {
+	srvr, tmpDir := newTestServer(t)
+	defer os.RemoveAll(tmpDir)
+
+	filename := "fragile.txt"
+	fileContent := strings.Repeat("x", 4096)
+
+	req := httptest.NewRequest("PUT", "/"+filename, strings.NewReader(fileContent))
+	req.ContentLength = int64(len(fileContent))
+	req.Header.Set("Max-Downloads", "1")
+	req = mux.SetURLVars(req, map[string]string{"filename": filename})
+
+	w := httptest.NewRecorder()
+	srvr.putHandler(w, req)
+
+	body, _ := io.ReadAll(w.Result().Body)
+	uploadURL := strings.TrimSpace(string(body))
+	parts := strings.Split(strings.TrimPrefix(uploadURL, "http://"), "/")
+	tok := parts[len(parts)-2]
+
+	getReq := httptest.NewRequest("GET", "/"+tok+"/"+filename, nil)
+	getReq = mux.SetURLVars(getReq, map[string]string{"token": tok, "filename": filename})
+
+	srvr.getHandler(&failingResponseWriter{header: http.Header{}}, getReq)
+
+	meta, err := srvr.checkMetadata(context.Background(), tok, filename)
+	if err != nil {
+		t.Fatalf("upload should survive a failed transfer: %v", err)
+	}
+	if meta.Downloads != 0 {
+		t.Errorf("downloads = %d after failed transfer, want 0", meta.Downloads)
+	}
+}
+
+// failingResponseWriter simulates a client that disconnects mid-body.
+type failingResponseWriter struct {
+	header http.Header
+}
+
+func (f *failingResponseWriter) Header() http.Header { return f.header }
+func (f *failingResponseWriter) Write([]byte) (int, error) {
+	return 0, errors.New("connection reset by peer")
+}
+func (f *failingResponseWriter) WriteHeader(int) {}
 
 func TestPostHandler(t *testing.T) {
 	srvr, tmpDir := newTestServer(t)
@@ -435,7 +543,7 @@ func TestPutWithEncryption(t *testing.T) {
 
 	// Verify metadata shows encrypted
 	ctx := context.Background()
-	meta, err := srvr.checkMetadata(ctx, tok, filename, false)
+	meta, err := srvr.checkMetadata(ctx, tok, filename)
 	if err != nil {
 		t.Fatalf("checkMetadata failed: %v", err)
 	}
@@ -487,7 +595,10 @@ func TestGetNonExistentFile(t *testing.T) {
 func TestMetadataForRequest(t *testing.T) {
 	t.Run("default metadata", func(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/test.txt", nil)
-		meta := metadataForRequest("text/plain", 100, 10, req)
+		meta, err := metadataForRequest("text/plain", 100, 10, req)
+		if err != nil {
+			t.Fatalf("metadataForRequest failed: %v", err)
+		}
 
 		if meta.ContentType != "text/plain" {
 			t.Errorf("ContentType = %q, want \"text/plain\"", meta.ContentType)
@@ -515,7 +626,10 @@ func TestMetadataForRequest(t *testing.T) {
 	t.Run("with max downloads", func(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/test.txt", nil)
 		req.Header.Set("Max-Downloads", "5")
-		meta := metadataForRequest("text/plain", 100, 10, req)
+		meta, err := metadataForRequest("text/plain", 100, 10, req)
+		if err != nil {
+			t.Fatalf("metadataForRequest failed: %v", err)
+		}
 
 		if meta.MaxDownloads != 5 {
 			t.Errorf("MaxDownloads = %d, want 5", meta.MaxDownloads)
@@ -525,7 +639,10 @@ func TestMetadataForRequest(t *testing.T) {
 	t.Run("with max days", func(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/test.txt", nil)
 		req.Header.Set("Max-Days", "7")
-		meta := metadataForRequest("text/plain", 100, 10, req)
+		meta, err := metadataForRequest("text/plain", 100, 10, req)
+		if err != nil {
+			t.Fatalf("metadataForRequest failed: %v", err)
+		}
 
 		if meta.MaxDate.IsZero() {
 			t.Error("MaxDate should not be zero")
@@ -535,7 +652,10 @@ func TestMetadataForRequest(t *testing.T) {
 	t.Run("with encryption", func(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/test.txt", nil)
 		req.Header.Set("X-Encrypt-Password", "secret")
-		meta := metadataForRequest("application/pdf", 100, 10, req)
+		meta, err := metadataForRequest("application/pdf", 100, 10, req)
+		if err != nil {
+			t.Fatalf("metadataForRequest failed: %v", err)
+		}
 
 		if !meta.Encrypted {
 			t.Error("should be encrypted")
@@ -580,7 +700,7 @@ func TestCheckMetadataJSON(t *testing.T) {
 	}
 
 	// Check metadata
-	result, err := srvr.checkMetadata(ctx, tok, filename, false)
+	result, err := srvr.checkMetadata(ctx, tok, filename)
 	if err != nil {
 		t.Fatalf("checkMetadata failed: %v", err)
 	}

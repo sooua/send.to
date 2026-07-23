@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -97,13 +98,44 @@ func TestLoveHandler(t *testing.T) {
 }
 
 func TestHealthHandler(t *testing.T) {
+	srvr, _ := New()
+
 	req := httptest.NewRequest("GET", "/health.html", nil)
 	w := httptest.NewRecorder()
-	healthHandler(w, req)
+	srvr.healthHandler(w, req)
 
 	resp := w.Result()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("health handler returned %d", resp.StatusCode)
+	}
+}
+
+func TestHealthHandlerJSON(t *testing.T) {
+	srvr, _ := New()
+
+	req := httptest.NewRequest("GET", "/health", nil)
+	req.Header.Set("Accept", "application/json")
+	w := httptest.NewRecorder()
+	srvr.healthHandler(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("health handler returned %d", resp.StatusCode)
+	}
+
+	var body struct {
+		Status  string `json:"status"`
+		Version string `json:"version"`
+		Uptime  string `json:"uptime"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("health response is not JSON: %v", err)
+	}
+	if body.Status != "ok" {
+		t.Errorf("status = %q, want \"ok\"", body.Status)
+	}
+	if body.Version == "" {
+		t.Error("version should not be empty")
 	}
 }
 

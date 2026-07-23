@@ -1,10 +1,11 @@
 package server
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
-	htmlTemplate "html/template"
 	"html"
+	htmlTemplate "html/template"
 	"io"
 	"net/http"
 	"net/url"
@@ -12,11 +13,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sooua/send.to/server/storage"
 	"github.com/gorilla/mux"
 	"github.com/microcosm-cc/bluemonday"
 	blackfriday "github.com/russross/blackfriday/v2"
 	qrcode "github.com/skip2/go-qrcode"
+	"github.com/sooua/send.to/server/storage"
 )
 
 func (s *Server) previewHandler(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +28,7 @@ func (s *Server) previewHandler(w http.ResponseWriter, r *http.Request) {
 	token := vars["token"]
 	filename := vars["filename"]
 
-	metadata, err := s.checkMetadata(r.Context(), token, filename, false)
+	metadata, err := s.checkMetadata(r.Context(), token, filename)
 
 	if err != nil {
 		s.logger.Error("Error metadata", "error", err)
@@ -36,6 +37,18 @@ func (s *Server) previewHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	contentType := metadata.ContentType
+
+	// Preview templates (download.image.html, download.video.html, …) are not
+	// shipped with this distribution — the Astro frontend handles the UI
+	// instead. Bail out before doing any work: rendering a preview costs a
+	// storage Head, a 5 MB read for text files and a QR encode, all of which
+	// used to be thrown away by the redirect at the end of this handler.
+	if !s.hasPreviewTemplates() {
+		inlineURL, _ := url.Parse(path.Join(s.proxyPath, "inline", token, filename))
+		http.Redirect(w, r, resolveURL(r, inlineURL, s.proxyPort), http.StatusFound)
+		return
+	}
+
 	contentLength, err := s.storage.Head(r.Context(), token, filename)
 	if err != nil {
 		http.Error(w, http.StatusText(404), 404)
@@ -126,10 +139,6 @@ func (s *Server) previewHandler(w http.ResponseWriter, r *http.Request) {
 		qrCode,
 	}
 
-	// Preview templates (download.image.html, download.video.html, …) are
-	// not shipped with this distribution — the Astro frontend handles the
-	// UI instead. If the template is missing, redirect to the inline view
-	// so browsers render the file directly.
 	if htmlTemplates.Lookup(templatePath) == nil {
 		inlineURL, _ := url.Parse(path.Join(s.proxyPath, "inline", token, filename))
 		http.Redirect(w, r, resolveURL(r, inlineURL, s.proxyPort), http.StatusFound)
@@ -143,13 +152,34 @@ func (s *Server) previewHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// previewTemplates are every template previewHandler is able to render.
+var previewTemplates = []string{
+	"download.html",
+	"download.image.html",
+	"download.video.html",
+	"download.audio.html",
+	"download.markdown.html",
+	"download.sandbox.html",
+}
+
+// hasPreviewTemplates reports whether any preview template was loaded from
+// --web-path. Builds that ship only the Astro frontend have none.
+func (s *Server) hasPreviewTemplates() bool {
+	for _, name := range previewTemplates {
+		if htmlTemplates.Lookup(name) != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Server) headHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	token := vars["token"]
 	filename := vars["filename"]
 
-	metadata, err := s.checkMetadata(r.Context(), token, filename, false)
+	metadata, err := s.checkMetadata(r.Context(), token, filename)
 
 	if err != nil {
 		s.logger.Error("Error metadata", "error", err)
@@ -189,7 +219,7 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 	token := vars["token"]
 	filename := vars["filename"]
 
-	metadata, err := s.checkMetadata(r.Context(), token, filename, true)
+	metadata, err := s.checkMetadata(r.Context(), token, filename)
 
 	if err != nil {
 		s.logger.Error("Error metadata", "error", err)
@@ -210,6 +240,7 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	} else if err != nil {
+		s.metrics.downloadErrors.Add(1)
 		s.logger.Error("Error", "error", err)
 		http.Error(w, "Could not retrieve file.", http.StatusInternalServerError)
 		return
@@ -271,9 +302,27 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 		reader = io.NopCloser(bluemonday.UGCPolicy().SanitizeReader(reader))
 	}
 
-	if _, err = io.Copy(w, reader); err != nil {
+	written, err := io.Copy(w, reader)
+	if err != nil {
+		s.metrics.downloadErrors.Add(1)
 		s.logger.Error("Error", "error", err)
 		http.Error(w, "Error occurred copying to output stream", http.StatusInternalServerError)
 		return
+	}
+
+	s.metrics.downloads.Add(1)
+	s.metrics.downloadBytes.Add(uint64(written))
+
+	// A Range request is one slice of a resumed or seeking transfer, not a
+	// distinct download. Counting them made `curl -C -` and every media
+	// player that probes a file burn the Max-Downloads budget.
+	if rng != nil {
+		return
+	}
+
+	// The transfer already succeeded, so bookkeeping must not be skipped
+	// just because the client hung up immediately afterwards.
+	if err := s.increaseDownload(context.WithoutCancel(r.Context()), token, filename); err != nil {
+		s.logger.Error("Could not record download", "token", token, "filename", filename, "error", err)
 	}
 }

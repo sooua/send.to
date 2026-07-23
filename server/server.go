@@ -43,6 +43,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/tg123/go-htpasswd"
+	"github.com/tomasen/realip"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/time/rate"
 
@@ -348,10 +349,12 @@ type Server struct {
 
 	profilerEnabled bool
 
-	locks sync.Map
+	locksMu sync.Mutex
+	locks   map[string]*fileLock
 
 	maxUploadSize     int64
 	rateLimitRequests int
+	rateLimiter       *ipRateLimiter
 
 	shutdownTimeout time.Duration
 
@@ -379,6 +382,9 @@ type Server struct {
 	gaKey        string
 	userVoiceKey string
 
+	startedAt time.Time
+	metrics   metrics
+
 	TLSListenerOnly bool
 
 	CorsDomains           string
@@ -394,7 +400,8 @@ type Server struct {
 // New is the factory fot Server
 func New(options ...OptionFn) (*Server, error) {
 	s := &Server{
-		locks: sync.Map{},
+		locks:     make(map[string]*fileLock),
+		startedAt: time.Now(),
 	}
 
 	for _, optionFn := range options {
@@ -403,7 +410,6 @@ func New(options ...OptionFn) (*Server, error) {
 
 	return s, nil
 }
-
 
 // panicHandler wraps an http.Handler with panic recovery middleware.
 // If the wrapped handler panics, it recovers and returns a 500 Internal Server Error.
@@ -446,43 +452,85 @@ func (lw *loggingResponseWriter) WriteHeader(code int) {
 	lw.ResponseWriter.WriteHeader(code)
 }
 
+// rateLimiterIdleTTL is how long an idle per-IP bucket is kept before it is
+// evicted. It must be long enough for a full bucket to refill, otherwise
+// eviction would hand an abusive IP a fresh burst allowance.
+const rateLimiterIdleTTL = 10 * time.Minute
+
 // ipRateLimiter provides per-IP rate limiting using token buckets.
+//
+// Entries are evicted after rateLimiterIdleTTL of inactivity; without that the
+// map grows once per distinct source address seen and never shrinks, which a
+// single port scan is enough to turn into unbounded memory growth.
 type ipRateLimiter struct {
-	limiters sync.Map // map[string]*rate.Limiter
+	mu       sync.Mutex
+	limiters map[string]*ipLimiterEntry
 	rate     rate.Limit
 	burst    int
+	lastGC   time.Time
+}
+
+type ipLimiterEntry struct {
+	limiter  *rate.Limiter
+	lastSeen time.Time
 }
 
 func newIPRateLimiter(requests int, window time.Duration) *ipRateLimiter {
-	// rate.Limit 是每秒允许的事件数
-	r := rate.Limit(float64(requests) / window.Seconds())
+	// rate.Limit is events per second.
 	return &ipRateLimiter{
-		rate:  r,
-		burst: requests,
+		limiters: make(map[string]*ipLimiterEntry),
+		rate:     rate.Limit(float64(requests) / window.Seconds()),
+		burst:    requests,
+		lastGC:   time.Now(),
 	}
 }
 
-func (rl *ipRateLimiter) getLimiter(ip string) *rate.Limiter {
-	if v, ok := rl.limiters.Load(ip); ok {
-		return v.(*rate.Limiter)
-	}
-	limiter := rate.NewLimiter(rl.rate, rl.burst)
-	rl.limiters.Store(ip, limiter)
-	return limiter
-}
+func (rl *ipRateLimiter) allow(ip string) bool {
+	now := time.Now()
 
-// rateLimitHandler wraps an http.HandlerFunc with per-IP rate limiting.
-func rateLimitHandler(next http.HandlerFunc, requests int, logger *slog.Logger) http.HandlerFunc {
-	rl := newIPRateLimiter(requests, 60*time.Second)
-	return func(w http.ResponseWriter, r *http.Request) {
-		ip := r.RemoteAddr
-		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-			ip = strings.Split(fwd, ",")[0]
+	rl.mu.Lock()
+	entry, ok := rl.limiters[ip]
+	if !ok {
+		entry = &ipLimiterEntry{limiter: rate.NewLimiter(rl.rate, rl.burst)}
+		rl.limiters[ip] = entry
+	}
+	entry.lastSeen = now
+
+	// Amortised sweep: at most once per TTL, on whichever request happens
+	// to arrive first. Cheap enough to do inline and needs no goroutine.
+	if now.Sub(rl.lastGC) > rateLimiterIdleTTL {
+		for key, e := range rl.limiters {
+			if now.Sub(e.lastSeen) > rateLimiterIdleTTL {
+				delete(rl.limiters, key)
+			}
 		}
-		ip = strings.TrimSpace(ip)
+		rl.lastGC = now
+	}
+	limiter := entry.limiter
+	rl.mu.Unlock()
 
-		if !rl.getLimiter(ip).Allow() {
-			logger.Warn("Rate limit exceeded", "ip", ip, "path", r.URL.Path)
+	return limiter.Allow()
+}
+
+// rateLimit wraps a handler with per-IP rate limiting against the server's
+// single shared limiter. Every rate-limited route draws from the same budget,
+// so `--rate-limit 60` means 60 requests per minute per IP in total rather
+// than 60 per route.
+func (s *Server) rateLimit(next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.rateLimiter == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// realip only trusts X-Forwarded-For/X-Real-IP from private and
+		// loopback peers, so a direct client cannot spoof its way into a
+		// fresh bucket by setting the header itself.
+		ip := realip.FromRequest(r)
+
+		if !s.rateLimiter.allow(ip) {
+			s.logger.Warn("Rate limit exceeded", "ip", ip, "path", r.URL.Path)
+			s.metrics.rateLimited.Add(1)
 			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 			return
 		}
@@ -496,17 +544,36 @@ func (s *Server) Run() {
 
 	var servers []*http.Server
 
+	if s.rateLimitRequests > 0 {
+		s.rateLimiter = newIPRateLimiter(s.rateLimitRequests, time.Minute)
+	}
+
+	// Uploads without a Content-Length, and every upload when the ClamAV
+	// prescan is on, are spooled here first. Creating it up front turns a
+	// per-request "no such file or directory" into a startup failure.
+	if s.tempPath != "" {
+		if err := os.MkdirAll(s.tempPath, 0700); err != nil {
+			s.logger.Error("Could not create temp path", "path", s.tempPath, "error", err)
+			os.Exit(1)
+		}
+	}
+
 	if s.profilerEnabled {
 		listening = true
 
+		profileAddr := s.ProfileListenerString
+		if profileAddr == "" {
+			profileAddr = "127.0.0.1:6060"
+		}
+
 		pprofSrv := &http.Server{
-			Addr:              "127.0.0.1:6060",
+			Addr:              profileAddr,
 			ReadHeaderTimeout: 10 * time.Second,
 		}
 		servers = append(servers, pprofSrv)
 
 		go func() {
-			s.logger.Info("Profiler listening", "addr", "127.0.0.1:6060")
+			s.logger.Info("Profiler listening", "addr", profileAddr)
 			if err := pprofSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				s.logger.Error("Profiler server error", "error", err)
 			}
@@ -558,12 +625,17 @@ func (s *Server) Run() {
 
 	r.HandleFunc("/{filename:(?:favicon\\.ico|robots\\.txt|health\\.html)}", s.basicAuthHandler(http.HandlerFunc(s.putHandler))).Methods("PUT")
 
-	r.HandleFunc("/health.html", healthHandler).Methods("GET")
+	r.HandleFunc("/health.html", s.healthHandler).Methods("GET")
+	r.HandleFunc("/health", s.healthHandler).Methods("GET")
+	r.HandleFunc("/metrics", s.metricsHandler).Methods("GET")
+	r.HandleFunc("/qr", s.rateLimit(http.HandlerFunc(s.qrHandler))).Methods("GET")
 	r.HandleFunc("/", s.viewHandler).Methods("GET")
 
-	r.HandleFunc("/({files:.*}).zip", s.zipHandler).Methods("GET")
-	r.HandleFunc("/({files:.*}).tar", s.tarHandler).Methods("GET")
-	r.HandleFunc("/({files:.*}).tar.gz", s.tarGzHandler).Methods("GET")
+	// Archive routes stream an arbitrary number of stored objects in a
+	// single request, so they get the same rate limit as plain downloads.
+	r.HandleFunc("/({files:.*}).zip", s.rateLimit(http.HandlerFunc(s.zipHandler))).Methods("GET")
+	r.HandleFunc("/({files:.*}).tar", s.rateLimit(http.HandlerFunc(s.tarHandler))).Methods("GET")
+	r.HandleFunc("/({files:.*}).tar.gz", s.rateLimit(http.HandlerFunc(s.tarGzHandler))).Methods("GET")
 
 	r.HandleFunc("/{token}/{filename}", s.headHandler).Methods("HEAD")
 	r.HandleFunc("/{action:(?:download|get|inline)}/{token}/{filename}", s.headHandler).Methods("HEAD")
@@ -586,23 +658,20 @@ func (s *Server) Run() {
 		return
 	}).Methods("GET")
 
-	getHandlerFn := s.getHandler
-	if s.rateLimitRequests > 0 {
-		getHandlerFn = rateLimitHandler(s.getHandler, s.rateLimitRequests, s.logger)
-	}
+	getHandlerFn := s.rateLimit(http.HandlerFunc(s.getHandler))
 
 	r.HandleFunc("/{token}/{filename}", getHandlerFn).Methods("GET")
 	r.HandleFunc("/{action:(?:download|get|inline)}/{token}/{filename}", getHandlerFn).Methods("GET")
 
-	putHandlerFn := http.HandlerFunc(s.putHandler)
-	postHandlerFn := http.HandlerFunc(s.postHandler)
-	if s.rateLimitRequests > 0 {
-		putHandlerFn = rateLimitHandler(s.putHandler, s.rateLimitRequests, s.logger)
-		postHandlerFn = rateLimitHandler(s.postHandler, s.rateLimitRequests, s.logger)
-	}
+	putHandlerFn := s.rateLimit(http.HandlerFunc(s.putHandler))
+	postHandlerFn := s.rateLimit(http.HandlerFunc(s.postHandler))
 
-	r.HandleFunc("/{filename}/virustotal", s.virusTotalHandler).Methods("PUT")
-	r.HandleFunc("/{filename}/scan", s.scanHandler).Methods("PUT")
+	// Scanning proxies an arbitrary request body to ClamAV / VirusTotal and
+	// spools it to disk on the way. Left open they let anyone burn the
+	// operator's VirusTotal quota and fill TEMP_PATH, so they are treated as
+	// write endpoints: same auth and same rate limit as an upload.
+	r.HandleFunc("/{filename}/virustotal", s.basicAuthHandler(s.rateLimit(http.HandlerFunc(s.virusTotalHandler)))).Methods("PUT")
+	r.HandleFunc("/{filename}/scan", s.basicAuthHandler(s.rateLimit(http.HandlerFunc(s.scanHandler)))).Methods("PUT")
 	r.HandleFunc("/put/{filename}", s.basicAuthHandler(putHandlerFn)).Methods("PUT")
 	r.HandleFunc("/upload/{filename}", s.basicAuthHandler(putHandlerFn)).Methods("PUT")
 	r.HandleFunc("/{filename}", s.basicAuthHandler(putHandlerFn)).Methods("PUT")

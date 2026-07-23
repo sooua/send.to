@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"time"
@@ -106,12 +107,16 @@ func (s *StorjStorage) Get(ctx context.Context, token string, filename string, r
 	return
 }
 
-// Delete removes a file from storage
+// Delete removes a file and its metadata sidecar from storage.
 func (s *StorjStorage) Delete(ctx context.Context, token string, filename string) (err error) {
-	key := storj.JoinPaths(token, filename)
-
 	s.logger.Info("Deleting file from Storj Bucket", "filename", filename)
 
+	// Metadata removal is best effort, matching the local and S3 backends:
+	// leaving a stale sidecar behind would make the token look alive.
+	metadataKey := storj.JoinPaths(token, fmt.Sprintf("%s.metadata", filename))
+	_, _ = s.project.DeleteObject(fpath.WithTempData(ctx, "", true), s.bucket.Name, metadataKey)
+
+	key := storj.JoinPaths(token, filename)
 	_, err = s.project.DeleteObject(fpath.WithTempData(ctx, "", true), s.bucket.Name, key)
 
 	return
@@ -140,9 +145,15 @@ func (s *StorjStorage) Put(ctx context.Context, token string, filename string, r
 	}
 
 	n, err := io.Copy(writer, reader)
-	if err != nil || uint64(n) != contentLength {
+	// contentLength == 0 means "length unknown up front" — encrypted uploads
+	// stream ciphertext whose size is not known until the last byte, so only
+	// verify when the caller actually declared a length.
+	if err != nil || (contentLength > 0 && uint64(n) != contentLength) {
 		//Ignoring the error to return the one that occurred first, but try to clean up.
 		_ = writer.Abort()
+		if err == nil {
+			err = fmt.Errorf("storj: wrote %d bytes, expected %d", n, contentLength)
+		}
 		return err
 	}
 	err = writer.SetCustomMetadata(ctx, uplink.CustomMetadata{"content-type": contentType})

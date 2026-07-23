@@ -81,6 +81,8 @@ func (s *LocalStorage) Delete(_ context.Context, token string, filename string) 
 
 // Purge cleans up the storage
 func (s *LocalStorage) Purge(_ context.Context, days time.Duration) (err error) {
+	cutoff := time.Now().Add(-1 * days)
+
 	err = filepath.Walk(s.basedir,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -90,15 +92,55 @@ func (s *LocalStorage) Purge(_ context.Context, days time.Duration) (err error) 
 				return nil
 			}
 
-			if info.ModTime().Before(time.Now().Add(-1 * days)) {
-				err = os.Remove(path)
-				return err
+			if info.ModTime().Before(cutoff) {
+				return os.Remove(path)
 			}
 
 			return nil
 		})
 
-	return
+	if err != nil {
+		return err
+	}
+
+	// Every upload gets its own token directory. Removing only the files
+	// leaves one empty directory per expired upload behind forever, which
+	// eventually exhausts inodes on a busy instance.
+	return s.removeEmptyTokenDirs()
+}
+
+// removeEmptyTokenDirs deletes now-empty per-token directories directly under
+// basedir. Best effort: a directory that gains a file between the read and the
+// remove simply fails to delete and is retried on the next purge.
+func (s *LocalStorage) removeEmptyTokenDirs() error {
+	entries, err := os.ReadDir(s.basedir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		dir := filepath.Join(s.basedir, entry.Name())
+
+		children, err := os.ReadDir(dir)
+		if err != nil {
+			s.logger.Error("Could not read token directory during purge", "dir", dir, "error", err)
+			continue
+		}
+
+		if len(children) > 0 {
+			continue
+		}
+
+		if err := os.Remove(dir); err != nil {
+			s.logger.Error("Could not remove empty token directory", "dir", dir, "error", err)
+		}
+	}
+
+	return nil
 }
 
 // IsNotExist indicates if a file doesn't exist on storage

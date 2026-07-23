@@ -195,22 +195,29 @@ func ipAddrFromRemoteAddr(s string) string {
 	return s[:idx]
 }
 
-// acceptsHTML reports whether the Accept header advertises text/html as one
-// of the acceptable response types. Quality factors are ignored — any
-// non-zero presence counts. Replaces github.com/golang/gddo/httputil/header.
-func acceptsHTML(hdr http.Header) bool {
+// acceptsMediaType reports whether the Accept header advertises the given
+// media type. Quality factors are ignored — any non-zero presence counts.
+// Wildcards are not matched, because every browser sends `*/*` and callers
+// use this to distinguish deliberate content-type requests.
+func acceptsMediaType(hdr http.Header, want string) bool {
 	for _, raw := range hdr.Values("Accept") {
 		for _, part := range strings.Split(raw, ",") {
 			mediaType := strings.TrimSpace(part)
 			if i := strings.IndexByte(mediaType, ';'); i >= 0 {
 				mediaType = strings.TrimSpace(mediaType[:i])
 			}
-			if strings.EqualFold(mediaType, "text/html") {
+			if strings.EqualFold(mediaType, want) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// acceptsHTML reports whether the client accepts an HTML response.
+// Replaces github.com/golang/gddo/httputil/header.
+func acceptsHTML(hdr http.Header) bool {
+	return acceptsMediaType(hdr, "text/html")
 }
 
 func formatSize(size int64) string {

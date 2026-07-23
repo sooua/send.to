@@ -10,8 +10,8 @@ import (
 
 	"github.com/sooua/send.to/server/storage"
 
-	"github.com/sooua/send.to/server"
 	"github.com/fatih/color"
+	"github.com/sooua/send.to/server"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/api/googleapi"
 )
@@ -330,6 +330,10 @@ func versionCommand(_ *cli.Context) error {
 func New() *Cmd {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
+	// Surfaced by /health and /metrics so an operator can tell which build
+	// is answering without shelling into the container.
+	server.Version = Version
+
 	app := cli.NewApp()
 	app.Name = "send.to"
 	app.Authors = []*cli.Author{}
@@ -366,8 +370,10 @@ func New() *Cmd {
 			options = append(options, server.TLSListener(v, false))
 		}
 
+		// Setting an explicit profiler address implies wanting the profiler;
+		// previously --profile-listener was accepted and then ignored.
 		if v := c.String("profile-listener"); v != "" {
-			options = append(options, server.ProfileListener(v))
+			options = append(options, server.ProfileListener(v), server.EnableProfiler())
 		}
 
 		if v := c.String("web-path"); v != "" {

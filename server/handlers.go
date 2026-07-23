@@ -135,58 +135,11 @@ func decrypt(ciphertext io.ReadCloser, password []byte) (plaintext io.ReadCloser
 	return
 }
 
-type encryptWrapperReader struct {
-	plaintext         io.Reader
-	encrypt           io.WriteCloser
-	armored           io.WriteCloser
-	buffer            io.ReadWriter
-	plaintextReadZero bool
-}
-
-func (e *encryptWrapperReader) Read(p []byte) (n int, err error) {
-	p2 := make([]byte, len(p))
-
-	n, _ = e.plaintext.Read(p2)
-	if n == 0 {
-		if !e.plaintextReadZero {
-			err = e.encrypt.Close()
-			if err != nil {
-				return
-			}
-
-			err = e.armored.Close()
-			if err != nil {
-				return
-			}
-
-			e.plaintextReadZero = true
-		}
-
-		return e.buffer.Read(p)
-	}
-
-	return e.buffer.Read(p)
-}
-
-func (e *encryptWrapperReader) Close() error {
-	return nil
-}
-
-func NewEncryptWrapperReader(plaintext io.Reader, armored, encrypt io.WriteCloser, buffer io.ReadWriter) io.ReadCloser {
-	return &encryptWrapperReader{
-		plaintext: io.TeeReader(plaintext, encrypt),
-		encrypt:   encrypt,
-		armored:   armored,
-		buffer:    buffer,
-	}
-}
-
+// encrypt streams an OpenPGP-armored, symmetrically encrypted copy of
+// plaintext through an io.Pipe. The pipe keeps memory use constant regardless
+// of file size — the previous bytes.Buffer implementation retained roughly a
+// third of the payload (the armor expansion) in RAM for the whole upload.
 func encrypt(plaintext io.ReadCloser, password []byte) (ciphertext io.ReadCloser, err error) {
-	bufferReadWriter := new(bytes.Buffer)
-	armored, err := armor.Encode(bufferReadWriter, constants.PGPMessageHeader, nil)
-	if err != nil {
-		return
-	}
 	config := &packet.Config{
 		DefaultCipher: packet.CipherAES256,
 		Time:          time.Now,
@@ -198,18 +151,45 @@ func encrypt(plaintext io.ReadCloser, password []byte) (ciphertext io.ReadCloser
 		ModTime:  time.Unix(time.Now().Unix(), 0),
 	}
 
-	encryptWriter, err := openpgp.SymmetricallyEncrypt(armored, password, hints, config)
-	if err != nil {
-		return
-	}
+	pr, pw := io.Pipe()
 
-	ciphertext = NewEncryptWrapperReader(plaintext, armored, encryptWriter, bufferReadWriter)
+	go func() {
+		armored, err := armor.Encode(pw, constants.PGPMessageHeader, nil)
+		if err != nil {
+			_ = pw.CloseWithError(err)
+			return
+		}
 
-	return
-}
+		encryptWriter, err := openpgp.SymmetricallyEncrypt(armored, password, hints, config)
+		if err != nil {
+			_ = pw.CloseWithError(err)
+			return
+		}
 
-func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	_, _ = w.Write([]byte("Approaching Neutral Zone, all systems normal and functioning."))
+		if _, err := io.Copy(encryptWriter, plaintext); err != nil {
+			_ = encryptWriter.Close()
+			_ = armored.Close()
+			_ = pw.CloseWithError(err)
+			return
+		}
+
+		// Both closes flush trailing data, so a failure here means the
+		// ciphertext is incomplete and must not be treated as success.
+		if err := encryptWriter.Close(); err != nil {
+			_ = armored.Close()
+			_ = pw.CloseWithError(err)
+			return
+		}
+
+		if err := armored.Close(); err != nil {
+			_ = pw.CloseWithError(err)
+			return
+		}
+
+		_ = pw.Close()
+	}()
+
+	return pr, nil
 }
 
 func canContainsXSS(contentType string) bool {
@@ -358,26 +338,60 @@ func (metadata metadata) remainingLimitHeaderValues() (remainingDownloads, remai
 	return remainingDownloads, remainingDays
 }
 
+// fileLock is a per-upload mutex plus the number of goroutines currently
+// holding or waiting for it, so the entry can be dropped once it is idle.
+type fileLock struct {
+	mu   sync.Mutex
+	refs int
+}
+
 func (s *Server) lock(token, filename string) {
 	key := path.Join(token, filename)
 
-	lock, _ := s.locks.LoadOrStore(key, &sync.Mutex{})
+	s.locksMu.Lock()
+	l, ok := s.locks[key]
+	if !ok {
+		l = &fileLock{}
+		s.locks[key] = l
+	}
+	// Claim a reference before releasing locksMu so unlock() cannot delete
+	// the entry out from under a goroutine that is about to wait on it.
+	l.refs++
+	s.locksMu.Unlock()
 
-	lock.(*sync.Mutex).Lock()
+	l.mu.Lock()
 }
 
 func (s *Server) unlock(token, filename string) {
 	key := path.Join(token, filename)
 
-	lock, _ := s.locks.LoadOrStore(key, &sync.Mutex{})
+	s.locksMu.Lock()
+	l, ok := s.locks[key]
+	if !ok {
+		s.locksMu.Unlock()
+		return
+	}
+	l.refs--
+	if l.refs == 0 {
+		delete(s.locks, key)
+	}
+	s.locksMu.Unlock()
 
-	lock.(*sync.Mutex).Unlock()
+	l.mu.Unlock()
 }
 
-func (s *Server) checkMetadata(ctx context.Context, token, filename string, increaseDownload bool) (metadata, error) {
+// checkMetadata loads and validates the metadata for an upload. Uploads that
+// have exhausted their download or date limit are removed from storage rather
+// than left behind for the (optional) scheduled purge to find later.
+func (s *Server) checkMetadata(ctx context.Context, token, filename string) (metadata, error) {
 	s.lock(token, filename)
 	defer s.unlock(token, filename)
 
+	return s.readMetadata(ctx, token, filename)
+}
+
+// readMetadata must be called with the token/filename lock held.
+func (s *Server) readMetadata(ctx context.Context, token, filename string) (metadata, error) {
 	var metadata metadata
 
 	r, _, err := s.storage.Get(ctx, token, fmt.Sprintf("%s.metadata", filename), nil)
@@ -389,23 +403,66 @@ func (s *Server) checkMetadata(ctx context.Context, token, filename string, incr
 
 	if err := json.NewDecoder(r).Decode(&metadata); err != nil {
 		return metadata, err
-	} else if metadata.MaxDownloads != -1 && metadata.Downloads >= metadata.MaxDownloads {
-		return metadata, errors.New("maxDownloads expired")
-	} else if !metadata.MaxDate.IsZero() && time.Now().After(metadata.MaxDate) {
-		return metadata, errors.New("maxDate expired")
-	} else if metadata.MaxDownloads != -1 && increaseDownload {
-		// Protected by s.lock()/s.unlock() above
-		metadata.Downloads++
+	}
 
-		buffer := &bytes.Buffer{}
-		if err := json.NewEncoder(buffer).Encode(metadata); err != nil {
-			return metadata, errors.New("could not encode metadata")
-		} else if err := s.storage.Put(ctx, token, fmt.Sprintf("%s.metadata", filename), buffer, "text/json", uint64(buffer.Len())); err != nil {
-			return metadata, errors.New("could not save metadata")
-		}
+	if metadata.MaxDownloads != -1 && metadata.Downloads >= metadata.MaxDownloads {
+		s.purgeExpired(ctx, token, filename)
+		return metadata, errors.New("maxDownloads expired")
+	}
+
+	if !metadata.MaxDate.IsZero() && time.Now().After(metadata.MaxDate) {
+		s.purgeExpired(ctx, token, filename)
+		return metadata, errors.New("maxDate expired")
 	}
 
 	return metadata, nil
+}
+
+// increaseDownload records one *completed* download against the upload's
+// Max-Downloads budget. It is deliberately called after the payload has been
+// written, so aborted transfers, failed storage reads and link-preview fetches
+// that never read the body do not burn a download.
+func (s *Server) increaseDownload(ctx context.Context, token, filename string) error {
+	s.lock(token, filename)
+	defer s.unlock(token, filename)
+
+	metadata, err := s.readMetadata(ctx, token, filename)
+	if err != nil {
+		return err
+	}
+
+	if metadata.MaxDownloads == -1 {
+		return nil
+	}
+
+	metadata.Downloads++
+
+	buffer := &bytes.Buffer{}
+	if err := json.NewEncoder(buffer).Encode(metadata); err != nil {
+		return errors.New("could not encode metadata")
+	}
+
+	if err := s.storage.Put(ctx, token, fmt.Sprintf("%s.metadata", filename), buffer, "text/json", uint64(buffer.Len())); err != nil {
+		return errors.New("could not save metadata")
+	}
+
+	if metadata.Downloads >= metadata.MaxDownloads {
+		s.purgeExpired(ctx, token, filename)
+	}
+
+	return nil
+}
+
+// purgeExpired removes an upload that has run out of downloads or days.
+// Best effort: on failure the blob is simply left for the scheduled purge,
+// so the error is logged instead of failing the request that noticed it.
+func (s *Server) purgeExpired(ctx context.Context, token, filename string) {
+	if err := s.storage.Delete(ctx, token, filename); err != nil && !s.storage.IsNotExist(err) {
+		s.logger.Error("Could not delete expired upload", "token", token, "filename", filename, "error", err)
+		return
+	}
+
+	s.metrics.expiredPurged.Add(1)
 }
 
 func (s *Server) checkDeletionToken(ctx context.Context, deletionToken, token, filename string) error {
@@ -469,6 +526,8 @@ func (s *Server) deleteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not delete file.", http.StatusInternalServerError)
 		return
 	}
+
+	s.metrics.deletes.Add(1)
 }
 
 func resolveURL(r *http.Request, u *url.URL, proxyPort string) string {
@@ -561,6 +620,21 @@ func getURL(r *http.Request, proxyPort string) *url.URL {
 	}
 
 	return u
+}
+
+// isOwnURL reports whether raw is an absolute http(s) URL whose host matches
+// the host this request came in on.
+func (s *Server) isOwnURL(r *http.Request, raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+
+	return strings.EqualFold(u.Host, getURL(r, s.proxyPort).Host)
 }
 
 func commonHeader(w http.ResponseWriter, filename string) {
