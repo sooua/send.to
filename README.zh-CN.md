@@ -42,6 +42,7 @@ curl https://send.to/aB3cD4eF/build.tar.gz -o build.tar.gz
 - [架构](#架构)
 - [性能](#性能)
 - [常见问题](#常见问题)
+- [更多配方](./examples.zh-CN.md)
 - [贡献指南](#贡献指南)
 - [许可证](#许可证)
 
@@ -193,6 +194,10 @@ curl -X DELETE https://send.to/<token>/notes.md/<deletion-token>
 send() { curl --progress-bar --upload-file "$1" "https://send.to/$(basename "$1")"; }
 # 用法：   send ./report.pdf
 ```
+
+---
+
+更多配方 —— fish / PowerShell 别名、加密数据库备份、CI 片段 —— 见 [examples.zh-CN.md](./examples.zh-CN.md)。
 
 ---
 

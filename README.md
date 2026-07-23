@@ -42,6 +42,7 @@ One static Go binary. One 52 MB Docker image. No database. No account. Your file
 - [Architecture](#architecture)
 - [Benchmarks](#benchmarks)
 - [FAQ](#faq)
+- [Examples](./examples.md)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -184,6 +185,8 @@ The upload response includes an `X-Url-Delete` header — hit it with `DELETE`.
 ```bash
 curl -X DELETE https://send.to/<token>/notes.md/<deletion-token>
 ```
+
+More recipes — fish/PowerShell aliases, encrypted database backups, CI snippets — are in [examples.md](./examples.md).
 
 ### Shell helper
 

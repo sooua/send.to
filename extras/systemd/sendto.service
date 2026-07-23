@@ -1,0 +1,65 @@
+[Unit]
+Description=send.to — easy file sharing from the command line
+Documentation=https://github.com/sooua/send.to
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sendto
+Group=sendto
+
+# All configuration lives in the environment file; every CLI flag has an
+# equivalent variable (--listener is LISTENER, and so on).
+EnvironmentFile=/etc/sendto/sendto.env
+ExecStart=/usr/local/bin/sendto
+
+# The server drains in-flight uploads on SIGTERM, bounded by SHUTDOWN_TIMEOUT.
+# Give systemd a little more than that before it resorts to SIGKILL.
+KillSignal=SIGTERM
+TimeoutStopSec=45s
+
+Restart=on-failure
+RestartSec=5s
+
+# Storage and upload spooling. StateDirectory creates and chowns
+# /var/lib/sendto; point BASEDIR and TEMP_PATH at it in sendto.env.
+StateDirectory=sendto
+StateDirectoryMode=0700
+
+# Hardening. The service needs nothing but its own state directory and a
+# network socket.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Uncomment only if you bind to a port below 1024 instead of running behind a
+# reverse proxy:
+# AmbientCapabilities=CAP_NET_BIND_SERVICE
+# CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+# File descriptors: one upload or download holds several.
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
