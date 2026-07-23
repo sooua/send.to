@@ -39,6 +39,13 @@ import CodeBlock from "../components/CodeBlock.astro";
           </li>
           <li>
             <a
+              href="#resumable"
+              class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary"
+              data-i18n="api.resumable">Resumable Upload</a
+            >
+          </li>
+          <li>
+            <a
               href="#download"
               class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary"
               data-i18n="api.download">Download</a
@@ -56,6 +63,20 @@ import CodeBlock from "../components/CodeBlock.astro";
               href="#archive"
               class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary"
               data-i18n="api.archive">Archive Download</a
+            >
+          </li>
+          <li>
+            <a
+              href="#collections"
+              class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary"
+              data-i18n="api.collections">Collections</a
+            >
+          </li>
+          <li>
+            <a
+              href="#owner"
+              class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary"
+              data-i18n="api.owner">Upload History</a
             >
           </li>
           <li>
@@ -159,6 +180,68 @@ import CodeBlock from "../components/CodeBlock.astro";
     -F <span class="code-string">filedata=@/tmp/hello2.txt</span> https://send.to/`}
             />
           </div>
+        </section>
+
+        <!-- Resumable Upload -->
+        <section id="resumable" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.resumable">
+            Resumable Upload
+          </h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.resumableDesc">
+            Upload a large file in chunks so an interrupted transfer continues instead of starting
+            over. Open a session with the total size, send chunks with Content-Range, and ask with
+            HEAD where to continue. A chunk is all or nothing: a body that arrives short is
+            discarded and the offset stays where it was, so the offset you resume from is always one
+            you chose. A wrong offset answers 409 with the correct one. The chunk that completes the
+            file answers exactly like a plain PUT. Sessions expire after 24 hours, and
+            X-Encrypt-Password is refused here — encrypt on the client instead.
+          </p>
+
+          <div class="mb-4 overflow-x-auto rounded-lg border border-border">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-surface">
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Method</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Path</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                </tr>
+              </thead>
+              <tbody class="text-muted">
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">POST</td>
+                  <td class="px-4 py-2 font-mono text-xs">/upload/{"{filename}"}</td>
+                  <td class="px-4 py-2">Open a session (Upload-Length required)</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">PATCH</td>
+                  <td class="px-4 py-2 font-mono text-xs">/upload/{"{id}"}/{"{filename}"}</td>
+                  <td class="px-4 py-2">Send one chunk (Content-Range required)</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">HEAD</td>
+                  <td class="px-4 py-2 font-mono text-xs">/upload/{"{id}"}/{"{filename}"}</td>
+                  <td class="px-4 py-2">Bytes the server holds (Upload-Offset)</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2 font-mono text-xs text-danger">DELETE</td>
+                  <td class="px-4 py-2 font-mono text-xs">/upload/{"{id}"}/{"{filename}"}</td>
+                  <td class="px-4 py-2">Abandon the session</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <CodeBlock
+            title="resume a big upload"
+            titleKey="code.resumableUpload"
+            code={`<span class="code-prompt">$</span> curl -X POST -H <span class="code-string">"Upload-Length: 5368709120"</span> https://send.to/upload/build.tar.gz
+<span class="code-comment"># -> 201, Location: https://send.to/upload/SESSION/build.tar.gz</span>
+
+<span class="code-prompt">$</span> curl -X PATCH -H <span class="code-string">"Content-Range: bytes 0-8388607/5368709120"</span> \
+    --data-binary @chunk-0 https://send.to/upload/SESSION/build.tar.gz
+
+<span class="code-prompt">$</span> curl -I https://send.to/upload/SESSION/build.tar.gz | grep -i upload-offset`}
+          />
         </section>
 
         <!-- Download -->
@@ -306,6 +389,109 @@ import CodeBlock from "../components/CodeBlock.astro";
           />
         </section>
 
+        <!-- Collections -->
+        <section id="collections" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.collections">
+            Collections
+          </h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.collectionsDesc">
+            Group uploads that already exist behind one link. The collection link renders a page for
+            browsers, returns JSON with Accept: application/json, and one share URL per line for
+            everything else; adding an archive extension downloads all of it at once. A collection
+            owns no bytes: deleting it leaves the files alone, a member that expires or runs out of
+            downloads drops off the list, and a collection with nothing left answers 404. At most
+            100 files.
+          </p>
+
+          <div class="mb-4 overflow-x-auto rounded-lg border border-border">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-surface">
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Method</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Path</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                </tr>
+              </thead>
+              <tbody class="text-muted">
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">POST</td>
+                  <td class="px-4 py-2 font-mono text-xs">/collection</td>
+                  <td class="px-4 py-2">Create one from a list of share URLs</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">/c/{"{token}"}</td>
+                  <td class="px-4 py-2">Landing page, JSON, or one URL per line</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">/c/{"{token}"}.zip</td>
+                  <td class="px-4 py-2">All of it as one archive (.tar, .tar.gz too)</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2 font-mono text-xs text-danger">DELETE</td>
+                  <td class="px-4 py-2 font-mono text-xs">/c/{"{token}"}/{"{deletionToken}"}</td>
+                  <td class="px-4 py-2">Delete the collection, not its files</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <CodeBlock
+            title="one link for several files"
+            titleKey="code.createCollection"
+            code={`<span class="code-prompt">$</span> curl -X POST -H <span class="code-string">"Content-Type: application/json"</span> \
+    -d <span class="code-string">'{"name":"nightly","files":["https://send.to/abc123/app.log","https://send.to/def456/worker.log"]}'</span> \
+    https://send.to/collection
+<span class="code-comment"># -> https://send.to/c/aB3cD4eF</span>
+
+<span class="code-prompt">$</span> curl -sL https://send.to/c/aB3cD4eF.zip -o logs.zip`}
+          />
+        </section>
+
+        <!-- Upload History -->
+        <section id="owner" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.owner">
+            Upload History
+          </h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.ownerDesc">
+            Send X-Owner-Token with an upload and the server records it in that owner's list, which
+            the same token can read back from any machine — the delete links included. There is
+            still no account: the server stores only sha256 of the token, never the token itself,
+            and an upload without the header stays anonymous. Holding the token is the whole of the
+            authorisation, so treat it as a password. Entries drop out when their upload is deleted,
+            expires or runs out of downloads; at most 200 are kept per token.
+          </p>
+
+          <div class="mb-4 overflow-x-auto rounded-lg border border-border">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-surface">
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Method</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Path</th>
+                  <th class="px-4 py-2 text-left font-mono text-xs text-muted-dark">Description</th>
+                </tr>
+              </thead>
+              <tbody class="text-muted">
+                <tr>
+                  <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
+                  <td class="px-4 py-2 font-mono text-xs">/owner/files</td>
+                  <td class="px-4 py-2">This token's uploads (X-Owner-Token required)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <CodeBlock
+            title="list what this token uploaded"
+            titleKey="code.ownerList"
+            code={`<span class="code-prompt">$</span> curl -H <span class="code-string">"X-Owner-Token: $TOKEN"</span> --upload-file build.log https://send.to/build.log
+
+<span class="code-prompt">$</span> curl -H <span class="code-string">"X-Owner-Token: $TOKEN"</span> https://send.to/owner/files
+<span class="code-comment"># one share URL per line; Accept: application/json for the full records</span>`}
+          />
+        </section>
+
         <!-- Virus Scan -->
         <section id="scan" class="animate-on-scroll">
           <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.scan">
@@ -436,6 +622,25 @@ import CodeBlock from "../components/CodeBlock.astro";
                       <td class="px-4 py-2">MIME type of the uploaded file</td>
                       <td class="px-4 py-2 font-mono text-xs text-muted-dark">image/png</td>
                     </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">Upload-Length</td>
+                      <td class="px-4 py-2">Total size, when opening a resumable session</td>
+                      <td class="px-4 py-2 font-mono text-xs text-muted-dark">5368709120</td>
+                    </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">Content-Range</td>
+                      <td class="px-4 py-2">Byte span of one chunk of a resumable upload</td>
+                      <td class="px-4 py-2 font-mono text-xs text-muted-dark"
+                        >bytes 0-8388607/5368709120</td
+                      >
+                    </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">X-Owner-Token</td>
+                      <td class="px-4 py-2">Record the upload in this owner's server-side list</td>
+                      <td class="px-4 py-2 font-mono text-xs text-muted-dark"
+                        >a 22+ character secret</td
+                      >
+                    </tr>
                     <tr>
                       <td class="px-4 py-2 font-mono text-xs">Authorization</td>
                       <td class="px-4 py-2">HTTP Basic Auth (if server requires it)</td>
@@ -511,11 +716,23 @@ import CodeBlock from "../components/CodeBlock.astro";
                     </tr>
                   </thead>
                   <tbody class="text-muted">
-                    <tr>
+                    <tr class="border-b border-border">
                       <td class="px-4 py-2 font-mono text-xs">X-Url-Delete</td>
                       <td class="px-4 py-2"
                         >Full URL to delete the uploaded file (includes deletion token)</td
                       >
+                    </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">Location</td>
+                      <td class="px-4 py-2">Session URL of a newly opened resumable upload</td>
+                    </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">Upload-Offset</td>
+                      <td class="px-4 py-2">Bytes of a resumable upload the server holds</td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-2 font-mono text-xs">Upload-Expires</td>
+                      <td class="px-4 py-2">When an unfinished upload session is discarded</td>
                     </tr>
                   </tbody>
                 </table>

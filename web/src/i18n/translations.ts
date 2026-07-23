@@ -225,6 +225,18 @@ export const translations: Record<Lang, Record<string, string>> = {
     "api.deleteDesc":
       "Delete a file using the deletion token returned in the X-Url-Delete response header during upload.",
     "api.archive": "Archive Download",
+    "api.resumable": "Resumable Upload",
+    "api.resumableDesc":
+      "Upload a large file in chunks so an interrupted transfer continues instead of starting over. Open a session with the total size, send chunks with Content-Range, and ask with HEAD where to continue. A chunk is all or nothing: a body that arrives short is discarded and the offset stays where it was, so the offset you resume from is always one you chose. A wrong offset answers 409 with the correct one. The chunk that completes the file answers exactly like a plain PUT. Sessions expire after 24 hours, and X-Encrypt-Password is refused here — encrypt on the client instead.",
+    "api.collections": "Collections",
+    "api.collectionsDesc":
+      "Group uploads that already exist behind one link. The collection link renders a page for browsers, returns JSON with Accept: application/json, and one share URL per line for everything else; adding an archive extension downloads all of it at once. A collection owns no bytes: deleting it leaves the files alone, a member that expires or runs out of downloads drops off the list, and a collection with nothing left answers 404. At most 100 files.",
+    "api.owner": "Upload History",
+    "api.ownerDesc":
+      "Send X-Owner-Token with an upload and the server records it in that owner's list, which the same token can read back from any machine — the delete links included. There is still no account: the server stores only sha256 of the token, never the token itself, and an upload without the header stays anonymous. Holding the token is the whole of the authorisation, so treat it as a password. Entries drop out when their upload is deleted, expires or runs out of downloads; at most 200 are kept per token.",
+    "code.resumableUpload": "resume a big upload",
+    "code.createCollection": "one link for several files",
+    "code.ownerList": "list what this token uploaded",
     "api.archiveDesc":
       "Download multiple files as a single archive (ZIP, TAR, or TAR.GZ). Separate file paths with commas.",
     "api.scan": "Virus Scan",
@@ -527,6 +539,18 @@ export const translations: Record<Lang, Record<string, string>> = {
     "api.delete": "删除",
     "api.deleteDesc": "使用上传时 X-Url-Delete 响应头中返回的删除 token 删除文件。",
     "api.archive": "归档下载",
+    "api.resumable": "分片续传上传",
+    "api.resumableDesc":
+      "把大文件切成分片上传，断掉之后接着传而不是从头再来。先用总大小开一个会话，然后带 Content-Range 逐片发送，用 HEAD 询问从哪继续。分片是原子的：传到一半的分片会被丢弃、偏移量不变，所以你续传的位置永远是自己选的位置；偏移量对不上会返回 409 并给出正确值。补齐最后一个分片时的响应与普通 PUT 完全一致。会话 24 小时过期。这里不接受 X-Encrypt-Password —— 请改用客户端加密。",
+    "api.collections": "集合链接",
+    "api.collectionsDesc":
+      "把已经存在的上传收进一条链接。浏览器打开是落地页，带 Accept: application/json 返回 JSON，其他客户端拿到每行一个分享链接；加上打包后缀就能一次下载全部。集合本身不持有任何字节：删除集合不会动里面的文件，成员过期或下载次数用尽会自动掉队，一个都不剩时返回 404。每个集合最多 100 个文件。",
+    "api.owner": "上传历史",
+    "api.ownerDesc":
+      "上传时带上 X-Owner-Token，服务端就会把它记进该身份的列表；之后在任何机器上用同一个 token 都能读回来，包括删除链接。它仍然不是账号：服务端只存 token 的 sha256，永远不存 token 本身，不带这个头的上传依然匿名。持有 token 就是全部授权，请当成密码对待。文件被删除、过期或下载次数用尽时，对应条目会自动消失；每个 token 最多保留 200 条。",
+    "code.resumableUpload": "续传一个大文件",
+    "code.createCollection": "一条链接装多个文件",
+    "code.ownerList": "列出这个 token 上传过什么",
     "api.archiveDesc": "将多个文件打包为单个归档下载（ZIP、TAR 或 TAR.GZ）。用逗号分隔文件路径。",
     "api.scan": "病毒扫描",
     "api.scanDesc": "使用 ClamAV 或 VirusTotal 扫描上传的文件（需要服务器配置）。",
@@ -831,6 +855,18 @@ export const translations: Record<Lang, Record<string, string>> = {
     "api.deleteDesc":
       "アップロード時の X-Url-Delete レスポンスヘッダーで返された削除トークンを使用してファイルを削除。",
     "api.archive": "アーカイブダウンロード",
+    "api.resumable": "レジューム可能なアップロード",
+    "api.resumableDesc":
+      "大きなファイルをチャンクに分けてアップロードし、中断しても最初からやり直さずに続きから再開します。合計サイズを指定してセッションを開き、Content-Range を付けてチャンクを送り、HEAD でどこから続けるかを尋ねます。チャンクは全か無かで、途中で切れた本文は破棄されオフセットは動きません。オフセットが合わない場合は 409 と正しい値を返します。最後のチャンクの応答は通常の PUT と同じです。セッションは 24 時間で失効し、X-Encrypt-Password はここでは拒否されます — クライアント側で暗号化してください。",
+    "api.collections": "コレクション",
+    "api.collectionsDesc":
+      "既存のアップロードを 1 つのリンクにまとめます。ブラウザではページを表示し、Accept: application/json では JSON を、それ以外では 1 行 1 URL を返します。拡張子を付ければまとめてダウンロードできます。コレクション自体はバイトを持ちません。削除してもファイルは残り、期限切れやダウンロード上限に達したメンバーは一覧から外れ、何も残っていないコレクションは 404 を返します。最大 100 ファイル。",
+    "api.owner": "アップロード履歴",
+    "api.ownerDesc":
+      "アップロード時に X-Owner-Token を送ると、サーバーがその所有者の一覧に記録し、同じトークンがあればどのマシンからでも削除リンクごと読み戻せます。アカウントは不要のままです。サーバーはトークンの sha256 のみを保存し、トークン自体は保存しません。ヘッダーなしのアップロードは匿名のままです。トークンの所持がそのまま認可なので、パスワードと同じように扱ってください。削除・期限切れ・ダウンロード上限に達したエントリは一覧から消え、1 トークンにつき最大 200 件保持されます。",
+    "code.resumableUpload": "大きなアップロードを再開する",
+    "code.createCollection": "複数ファイルを 1 つのリンクに",
+    "code.ownerList": "このトークンのアップロード一覧",
     "api.archiveDesc":
       "複数ファイルを単一アーカイブとしてダウンロード（ZIP、TAR、TAR.GZ）。ファイルパスはカンマで区切ります。",
     "api.scan": "ウイルススキャン",
