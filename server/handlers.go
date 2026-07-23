@@ -397,6 +397,10 @@ type metadata struct {
 	Encrypted bool
 	// DecryptedContentType is the original uploading content type
 	DecryptedContentType string
+	// OwnerHash is sha256 of the uploader's X-Owner-Token, when one was sent.
+	// It indexes the upload in that owner's server-side list; the token itself
+	// is never stored.
+	OwnerHash string `json:",omitempty"`
 }
 
 func (metadata metadata) remainingLimitHeaderValues() (remainingDownloads, remainingDays string) {
@@ -484,12 +488,12 @@ func (s *Server) readMetadata(ctx context.Context, token, filename string) (meta
 	}
 
 	if metadata.MaxDownloads != -1 && metadata.Downloads >= metadata.MaxDownloads {
-		s.purgeExpired(ctx, token, filename)
+		s.purgeExpired(ctx, token, filename, metadata.OwnerHash)
 		return metadata, errors.New("maxDownloads expired")
 	}
 
 	if !metadata.MaxDate.IsZero() && time.Now().After(metadata.MaxDate) {
-		s.purgeExpired(ctx, token, filename)
+		s.purgeExpired(ctx, token, filename, metadata.OwnerHash)
 		return metadata, errors.New("maxDate expired")
 	}
 
@@ -525,7 +529,7 @@ func (s *Server) increaseDownload(ctx context.Context, token, filename string) e
 	}
 
 	if metadata.Downloads >= metadata.MaxDownloads {
-		s.purgeExpired(ctx, token, filename)
+		s.purgeExpired(ctx, token, filename, metadata.OwnerHash)
 	}
 
 	return nil
@@ -534,16 +538,18 @@ func (s *Server) increaseDownload(ctx context.Context, token, filename string) e
 // purgeExpired removes an upload that has run out of downloads or days.
 // Best effort: on failure the blob is simply left for the scheduled purge,
 // so the error is logged instead of failing the request that noticed it.
-func (s *Server) purgeExpired(ctx context.Context, token, filename string) {
+func (s *Server) purgeExpired(ctx context.Context, token, filename, ownerHash string) {
 	if err := s.storage.Delete(ctx, token, filename); err != nil && !s.storage.IsNotExist(err) {
 		s.logger.Error("Could not delete expired upload", "token", maskToken(token), "filename", filename, "error", err)
 		return
 	}
 
+	s.forgetOwnership(ctx, ownerHash, token, filename)
+
 	s.metrics.expiredPurged.Add(1)
 }
 
-func (s *Server) checkDeletionToken(ctx context.Context, deletionToken, token, filename string) error {
+func (s *Server) checkDeletionToken(ctx context.Context, deletionToken, token, filename string) (metadata, error) {
 	s.lock(token, filename)
 	defer s.unlock(token, filename)
 
@@ -553,18 +559,18 @@ func (s *Server) checkDeletionToken(ctx context.Context, deletionToken, token, f
 	defer storage.CloseCheck(r)
 
 	if s.storage.IsNotExist(err) {
-		return errors.New("metadata doesn't exist")
+		return metadata, errors.New("metadata doesn't exist")
 	} else if err != nil {
-		return err
+		return metadata, err
 	}
 
 	if err := json.NewDecoder(r).Decode(&metadata); err != nil {
-		return err
+		return metadata, err
 	} else if metadata.DeletionToken != deletionToken {
-		return errors.New("deletion token doesn't match")
+		return metadata, errors.New("deletion token doesn't match")
 	}
 
-	return nil
+	return metadata, nil
 }
 
 func (s *Server) purgeHandler() {
@@ -589,13 +595,14 @@ func (s *Server) deleteHandler(w http.ResponseWriter, r *http.Request) {
 	filename := vars["filename"]
 	deletionToken := vars["deletionToken"]
 
-	if err := s.checkDeletionToken(r.Context(), deletionToken, token, filename); err != nil {
+	m, err := s.checkDeletionToken(r.Context(), deletionToken, token, filename)
+	if err != nil {
 		s.logger.Error("Error metadata", "error", err)
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
 
-	err := s.storage.Delete(r.Context(), token, filename)
+	err = s.storage.Delete(r.Context(), token, filename)
 	if s.storage.IsNotExist(err) {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
@@ -604,6 +611,8 @@ func (s *Server) deleteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not delete file.", http.StatusInternalServerError)
 		return
 	}
+
+	s.forgetOwnership(r.Context(), m.OwnerHash, token, filename)
 
 	s.metrics.deletes.Add(1)
 }

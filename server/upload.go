@@ -187,7 +187,10 @@ func (s *Server) storeMultipartFile(w http.ResponseWriter, r *http.Request, toke
 		return result, err
 	}
 
-	return s.newUploadResult(r, token, filename, metadata), nil
+	result = s.newUploadResult(r, token, filename, metadata)
+	s.recordOwnership(r, result, metadata, token)
+
+	return result, nil
 }
 
 func (s *Server) putHandler(w http.ResponseWriter, r *http.Request) {
@@ -277,7 +280,10 @@ func (s *Server) putHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.writeUploadResponse(w, r, s.newUploadResult(r, token, filename, metadata))
+	result := s.newUploadResult(r, token, filename, metadata)
+	s.recordOwnership(r, result, metadata, token)
+
+	s.writeUploadResponse(w, r, result)
 }
 
 // writeUploadResponse answers a completed upload: a bare URL for curl, the full
@@ -443,6 +449,7 @@ func metadataForHeaders(contentType string, contentLength int64, randomTokenLeng
 		Downloads:     0,
 		MaxDownloads:  -1,
 		DeletionToken: token(randomTokenLength) + token(randomTokenLength),
+		OwnerHash:     ownerHashFromHeaders(h),
 	}
 
 	// A malformed limit used to be discarded silently, so a typo in

@@ -256,6 +256,40 @@ curl -s https://send.to/<token>/contract.pdf.age | age -d -o contract.pdf
 
 ---
 
+## An upload history that outlives the machine
+
+The delete link arrives once. If the machine that uploaded the file is a CI
+runner that has since been destroyed, the file is undeletable until it expires.
+
+Give the uploads an owner token and the server keeps the list:
+
+```bash
+send put ./nightly.log --days 30
+send ls --remote                  # from any machine holding the same token
+send rm https://send.to/aB3cD4eF/nightly.log
+```
+
+Several machines can share one identity:
+
+```bash
+export SENDTO_OWNER_TOKEN="$(openssl rand -base64 32)"   # put it in the CI secret store
+send put ./nightly.log
+```
+
+Or with plain curl:
+
+```bash
+curl -H "X-Owner-Token: $SENDTO_OWNER_TOKEN" --upload-file nightly.log https://send.to/nightly.log
+
+# Clean up everything this token uploaded.
+curl -sH "X-Owner-Token: $SENDTO_OWNER_TOKEN" -H "Accept: application/json" https://send.to/owner/files |
+    jq -r '.files[].delete_url' |
+    xargs -rn1 curl -sS -X DELETE
+```
+
+The server holds only the hash of the token, so it cannot reconstruct it, and an
+upload without the header stays anonymous.
+
 ## Deleting
 
 Every upload returns a deletion URL in the `X-Url-Delete` response header:

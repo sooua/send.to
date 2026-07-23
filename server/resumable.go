@@ -68,6 +68,7 @@ type uploadSession struct {
 	Total        int64     `json:"total"`
 	MaxDays      int       `json:"max_days,omitempty"`
 	MaxDownloads int       `json:"max_downloads,omitempty"`
+	OwnerHash    string    `json:"owner_hash,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
@@ -241,7 +242,11 @@ func (s *Server) createUploadSessionHandler(w http.ResponseWriter, r *http.Reque
 		Filename:    filename,
 		ContentType: contentType,
 		Total:       total,
-		CreatedAt:   time.Now(),
+		// Recorded now rather than at the finishing chunk: the owner is
+		// whoever started the upload, and the last chunk may come from a
+		// later run of the client.
+		OwnerHash: ownerHashFromHeaders(r.Header),
+		CreatedAt: time.Now(),
 	}
 	sess.MaxDays, _ = strconv.Atoi(r.Header.Get("Max-Days"))
 	sess.MaxDownloads, _ = strconv.Atoi(r.Header.Get("Max-Downloads"))
@@ -493,6 +498,8 @@ func (s *Server) finishUploadSession(w http.ResponseWriter, r *http.Request, ses
 		return
 	}
 
+	m.OwnerHash = sess.OwnerHash
+
 	uploadToken := token(s.randomTokenLength)
 
 	if err := s.store(r.Context(), uploadToken, sess.Filename, f, sess.ContentType, sess.Total, m, ""); err != nil {
@@ -504,5 +511,8 @@ func (s *Server) finishUploadSession(w http.ResponseWriter, r *http.Request, ses
 
 	s.removeSession(sess.ID)
 
-	s.writeUploadResponse(w, r, s.newUploadResult(r, uploadToken, sess.Filename, m))
+	result := s.newUploadResult(r, uploadToken, sess.Filename, m)
+	s.recordOwnership(r, result, m, uploadToken)
+
+	s.writeUploadResponse(w, r, result)
 }

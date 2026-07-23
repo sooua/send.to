@@ -24,7 +24,10 @@ type Client struct {
 	BaseURL  string
 	Username string
 	Password string
-	HTTP     *http.Client
+	// OwnerToken identifies this uploader to the server without an account, so
+	// the uploads it makes can be listed and deleted from another machine.
+	OwnerToken string
+	HTTP       *http.Client
 }
 
 // New returns a client for baseURL. A zero timeout is deliberate: uploads and
@@ -128,6 +131,7 @@ func (c *Client) Upload(ctx context.Context, name string, body io.Reader, size i
 	req.ContentLength = size
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/octet-stream")
+	c.withOwner(req)
 
 	if opts.Days > 0 {
 		req.Header.Set("Max-Days", strconv.Itoa(opts.Days))

@@ -280,6 +280,7 @@ AES-256-GCM，64 KiB 分块，分块计数器和末块标记都折进 nonce，�
 | `DELETE` | `/{token}/{filename}/{delToken}`    | 删除文件                     |
 | `PUT`    | `/{filename}/scan`                  | ClamAV 扫描（需鉴权 + 限流） |
 | `PUT`    | `/{filename}/virustotal`            | 上传到 VirusTotal（需鉴权 + 限流） |
+| `GET`    | `/owner/files`                      | 列出这个 owner token 的全部上传 |
 | `GET`    | `/health` · `/health.html`          | 健康检查（`Accept: application/json` 返回 JSON） |
 | `GET`    | `/metrics`                          | Prometheus 指标              |
 | `GET`    | `/qr?url=`                          | 生成本站分享链接的二维码 PNG |
@@ -290,6 +291,7 @@ AES-256-GCM，64 KiB 分块，分块计数器和末块标记都折进 nonce，�
 | ----------------------- | ---------------------------------------------------- |
 | `Max-Days`              | 多少天后自动过期                                     |
 | `Max-Downloads`         | 最多下载次数                                         |
+| `X-Owner-Token`         | 把这次上传记进该身份的服务端列表                     |
 | `X-Encrypt-Password`    | 服务端加密（OpenPGP AES-256）                        |
 | `X-Decrypt-Password`    | 下载时提供解密密码                                   |
 
@@ -344,6 +346,43 @@ resuming at 1.4 GB of 5.0 GB
 ```
 
 如果服务端没有这些端点，客户端会自动退回普通 `PUT`。
+
+### 服务端上传历史
+
+`send` 客户端在本地记录上传过什么，但如果上传的那台机器是一个已经销毁的 CI
+runner，这份记录连同所有删除链接一起没了。
+
+带上 owner token，改由服务端来记：
+
+```bash
+curl -H "X-Owner-Token: $SENDTO_OWNER_TOKEN" --upload-file build.log https://send.to/build.log
+
+curl -H "X-Owner-Token: $SENDTO_OWNER_TOKEN" https://send.to/owner/files
+# 每行一个分享链接；带 Accept: application/json 则返回完整记录
+```
+
+它仍然不是账号：
+
+- 服务端只存 **token 的 sha256**，永远不存 token 本身。那是一个索引名，不是它
+  能交给别人的凭证。
+- 持有 token 就是全部授权，所以请当成密码对待：它能列出用它上传的每个文件的
+  分享链接和删除链接。
+- 文件消失（被删除、过期、下载次数用尽）时，对应条目也会消失；每次读取列表时
+  顺手清理。
+- 不带这个头的上传依然是匿名的，和以前完全一样。
+- 每个 token 最多保留 200 条，超出的按时间淘汰。
+
+`send` 从配置目录里的主密钥（`owner.key`，权限 0600）为每个服务器派生一个独立
+token，因此你上传的那台服务器学不到任何能拿去别处重放的东西：
+
+```bash
+send put build.log            # 自动带上 token
+send ls --remote              # 这个身份在服务端的全部上传，任何机器上都能看
+send rm https://send.to/aB3cD4eF/build.log   # 用服务端保存的删除链接
+```
+
+想让多台机器共用同一个身份（比如多个 CI runner 发布到同一份列表），设置
+`SENDTO_OWNER_TOKEN` 即可。
 
 ### JSON 响应
 

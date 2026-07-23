@@ -80,6 +80,7 @@ func (c *Client) CreateSession(ctx context.Context, name string, size int64, opt
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Upload-Length", strconv.FormatInt(size, 10))
+	c.withOwner(req)
 
 	if opts.Days > 0 {
 		req.Header.Set("Max-Days", strconv.Itoa(opts.Days))

@@ -250,6 +250,39 @@ curl -s https://send.to/<token>/contract.pdf.age | age -d -o contract.pdf
 
 ---
 
+## 比机器活得久的上传历史
+
+删除链接只出现一次。如果上传的那台机器是一个已经销毁的 CI runner，这个文件在
+过期之前就删不掉了。
+
+给上传带上 owner token，列表交给服务端保管：
+
+```bash
+send put ./nightly.log --days 30
+send ls --remote                  # 任何持有同一个 token 的机器都能看
+send rm https://send.to/aB3cD4eF/nightly.log
+```
+
+多台机器可以共用一个身份：
+
+```bash
+export SENDTO_OWNER_TOKEN="$(openssl rand -base64 32)"   # 放进 CI 的 secret 里
+send put ./nightly.log
+```
+
+用纯 curl 也一样：
+
+```bash
+curl -H "X-Owner-Token: $SENDTO_OWNER_TOKEN" --upload-file nightly.log https://send.to/nightly.log
+
+# 清掉这个 token 上传过的所有文件
+curl -sH "X-Owner-Token: $SENDTO_OWNER_TOKEN" -H "Accept: application/json" https://send.to/owner/files |
+    jq -r '.files[].delete_url' |
+    xargs -rn1 curl -sS -X DELETE
+```
+
+服务端只保存 token 的哈希，无法还原出 token；不带这个头的上传依然是匿名的。
+
 ## 删除
 
 每次上传的响应头 `X-Url-Delete` 里都带着删除链接：

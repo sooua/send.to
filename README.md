@@ -287,6 +287,7 @@ file whose fragment was lost.
 | `DELETE` | `/{token}/{filename}/{delToken}` | Delete a file                   |
 | `PUT`  | `/{filename}/scan`                 | ClamAV scan (auth + rate limited) |
 | `PUT`  | `/{filename}/virustotal`           | VirusTotal submission (auth + rate limited) |
+| `GET`  | `/owner/files`                     | List this owner token's uploads |
 | `GET`  | `/health` · `/health.html`         | Health check (JSON on `Accept: application/json`) |
 | `GET`  | `/metrics`                         | Prometheus counters             |
 | `GET`  | `/qr?url=`                         | QR code PNG for a share link on this host |
@@ -297,6 +298,7 @@ file whose fragment was lost.
 | ---------------------- | --------------------------------------------------- |
 | `Max-Days`             | Auto-expire after N days                            |
 | `Max-Downloads`        | Cap downloads at N                                  |
+| `X-Owner-Token`        | Record the upload in this owner's server-side list  |
 | `X-Encrypt-Password`   | Server encrypts payload (OpenPGP AES-256)           |
 | `X-Decrypt-Password`   | Provide password on download                        |
 
@@ -354,6 +356,45 @@ resuming at 1.4 GB of 5.0 GB
 ```
 
 Against a server without these endpoints the client falls back to a plain `PUT`.
+
+### Server-side upload history
+
+The `send` CLI keeps a local record of what it uploaded, which is no help at all
+when the machine that uploaded it was a CI runner that no longer exists — the
+delete links went with it.
+
+Send an owner token and the server keeps the list instead:
+
+```bash
+curl -H "X-Owner-Token: $SENDTO_OWNER_TOKEN" --upload-file build.log https://send.to/build.log
+
+curl -H "X-Owner-Token: $SENDTO_OWNER_TOKEN" https://send.to/owner/files
+# one share URL per line, or the full records with Accept: application/json
+```
+
+There is still no account:
+
+- The server stores **sha256 of the token** and never the token itself. It is an
+  index name, not a credential it could hand to anyone else.
+- Holding the token is the whole of the authorisation, so treat it as a
+  password: it lists share links and delete links for every upload made with it.
+- Entries disappear when their upload does — deleted, expired, or out of
+  downloads — and the list prunes itself when it is read.
+- Uploads made without the header stay anonymous, exactly as before.
+- At most 200 entries per token are kept; the oldest fall off.
+
+`send` derives one token per server from a master secret in its config
+directory (`owner.key`, mode 0600), so a server you upload to learns nothing it
+could replay against a different one:
+
+```bash
+send put build.log            # the token rides along
+send ls --remote              # what this owner has on the server, from any machine
+send rm https://send.to/aB3cD4eF/build.log   # uses the delete link the server kept
+```
+
+Set `SENDTO_OWNER_TOKEN` to share one identity across machines — several CI
+runners publishing into the same list, for instance.
 
 ### JSON responses
 

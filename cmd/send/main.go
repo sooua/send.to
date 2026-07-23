@@ -84,7 +84,7 @@ Point it at a server once and forget about it:
 		Commands: []*cli.Command{
 			putCommand(serverFlags),
 			getCommand(serverFlags),
-			listCommand(),
+			listCommand(serverFlags),
 			removeCommand(serverFlags),
 			infoCommand(serverFlags),
 			configCommand(),
@@ -107,6 +107,12 @@ func resolveClient(c *cli.Context) (*client.Client, client.Profile, error) {
 	api := client.New(profile.URL)
 	api.Username = profile.Username
 	api.Password = profile.Password
+
+	// Best effort: without a token the client simply keeps no server-side
+	// history, which is how it behaved before there was one.
+	if token, err := client.OwnerToken(profile.URL); err == nil {
+		api.OwnerToken = token
+	}
 
 	return api, profile, nil
 }
@@ -554,11 +560,15 @@ func downloadDecryptedToStdout(c *cli.Context, api *client.Client, fileURL strin
 
 // ---------------------------------------------------------------- ls
 
-func listCommand() *cli.Command {
+func listCommand(serverFlags []cli.Flag) *cli.Command {
 	return &cli.Command{
 		Name:  "ls",
 		Usage: "list uploads made from this machine",
-		Flags: []cli.Flag{
+		Flags: append([]cli.Flag{
+			&cli.BoolFlag{
+				Name:  "remote",
+				Usage: "ask the server what this owner token has uploaded, from any machine",
+			},
 			&cli.BoolFlag{
 				Name:  "all",
 				Usage: "include entries whose expiry has passed",
@@ -575,12 +585,16 @@ func listCommand() *cli.Command {
 				Name:  "prune",
 				Usage: "drop expired entries from the history",
 			},
-		},
+		}, serverFlags...),
 		Action: runList,
 	}
 }
 
 func runList(c *cli.Context) error {
+	if c.Bool("remote") {
+		return runListRemote(c)
+	}
+
 	history, err := client.LoadHistory()
 	if err != nil {
 		return err
@@ -615,11 +629,61 @@ func runList(c *cli.Context) error {
 		return nil
 	}
 
-	if c.Bool("urls") {
+	printEntries(entries, c.Bool("urls"))
+
+	return nil
+}
+
+// runListRemote asks the server instead of the local file, which is the only
+// way to see what another machine uploaded under the same owner token.
+func runListRemote(c *cli.Context) error {
+	api, profile, err := resolveClient(c)
+	if err != nil {
+		return err
+	}
+
+	remote, err := api.RemoteList(c.Context)
+	if err != nil {
+		return err
+	}
+
+	if c.Bool("json") {
+		return printJSON(remote)
+	}
+
+	if len(remote) == 0 {
+		fmt.Fprintf(os.Stderr, "%s has nothing recorded for this owner token\n", profile.URL)
+		return nil
+	}
+
+	entries := make([]client.Entry, 0, len(remote))
+	for _, e := range remote {
+		entries = append(entries, client.Entry{
+			URL:          e.URL,
+			DeleteURL:    e.DeleteURL,
+			Filename:     e.Filename,
+			Size:         e.Size,
+			Encrypted:    e.Encrypted,
+			MaxDownloads: e.MaxDownloads,
+			ExpiresAt:    e.ExpiresAt,
+			UploadedAt:   e.UploadedAt,
+			Server:       profile.URL,
+		})
+	}
+
+	printEntries(entries, c.Bool("urls"))
+
+	return nil
+}
+
+// printEntries renders one upload per line, shared by the local and remote
+// listings so the two cannot drift apart.
+func printEntries(entries []client.Entry, urlsOnly bool) {
+	if urlsOnly {
 		for _, e := range entries {
 			fmt.Println(e.URL)
 		}
-		return nil
+		return
 	}
 
 	for _, e := range entries {
@@ -644,8 +708,6 @@ func runList(c *cli.Context) error {
 		fmt.Printf("%-28s  %9s  %-12s  %-10s%s\n  %s\n",
 			truncate(e.Filename, 28), humanBytes(e.Size), expiry, limit, flags, e.URL)
 	}
-
-	return nil
 }
 
 // ---------------------------------------------------------------- rm
@@ -672,21 +734,30 @@ func runRemove(c *cli.Context) error {
 		return err
 	}
 
+	api, _, err := resolveClient(c)
+	if err != nil {
+		api = client.New("")
+	}
+
+	// The server's list is fetched once, and only when it is needed: it is
+	// what makes `send rm` work for an upload made from another machine.
+	remote := newRemoteIndex(c.Context, api)
+
 	targets := c.Args().Slice()
 	if c.Bool("all") {
 		targets = nil
 		for _, e := range history.Entries {
 			targets = append(targets, e.URL)
 		}
+		if len(targets) == 0 {
+			for _, e := range remote.all() {
+				targets = append(targets, e.URL)
+			}
+		}
 	}
 
 	if len(targets) == 0 {
 		return errors.New("usage: send rm <url>... (or --all)")
-	}
-
-	api, _, err := resolveClient(c)
-	if err != nil {
-		api = client.New("")
 	}
 
 	var failed int
@@ -702,6 +773,10 @@ func runRemove(c *cli.Context) error {
 		switch {
 		case entry != nil && entry.DeleteURL != "":
 			deleteURL = entry.DeleteURL
+		case remote.deleteURL(deleteURL) != "":
+			// Uploaded from a different machine, but with the same owner
+			// token, so the server can still hand back the delete link.
+			deleteURL = remote.deleteURL(deleteURL)
 		case strings.Count(strings.TrimPrefix(target, "https://"), "/") >= 3:
 			// Already a deletion URL: /{token}/{filename}/{deletionToken}.
 		default:

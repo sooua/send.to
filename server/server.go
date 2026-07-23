@@ -629,6 +629,10 @@ func (s *Server) Run() {
 
 	r.HandleFunc("/{filename:(?:favicon\\.ico|robots\\.txt|health\\.html)}", s.basicAuthHandler(http.HandlerFunc(s.putHandler))).Methods("PUT")
 
+	// The upload list is reachable only by presenting the owner token, so it
+	// is a read of the caller's own data rather than a public listing.
+	r.HandleFunc("/owner/files", s.basicAuthHandler(s.rateLimit(http.HandlerFunc(s.ownerFilesHandler)))).Methods("GET")
+
 	r.HandleFunc("/health.html", s.healthHandler).Methods("GET")
 	r.HandleFunc("/health", s.healthHandler).Methods("GET")
 	r.HandleFunc("/metrics", s.metricsHandler).Methods("GET")
@@ -713,7 +717,7 @@ func (s *Server) Run() {
 				if allowedOrigins == nil || allowedOrigins[origin] {
 					w.Header().Set("Access-Control-Allow-Origin", origin)
 					w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS")
-					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Range, Max-Downloads, Max-Days, Upload-Length, X-Encrypt-Password, X-Decrypt-Password, Authorization")
+					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Range, Max-Downloads, Max-Days, Upload-Length, X-Owner-Token, X-Encrypt-Password, X-Decrypt-Password, Authorization")
 					w.Header().Set("Access-Control-Expose-Headers", "X-Url-Delete, Location, Upload-Offset, Upload-Length, Upload-Expires")
 					w.Header().Set("Access-Control-Max-Age", "86400")
 				}
