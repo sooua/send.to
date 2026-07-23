@@ -815,14 +815,15 @@ func runRemove(c *cli.Context) error {
 
 	targets := c.Args().Slice()
 	if c.Bool("all") {
+		// Deliberately the local history and nothing else. Falling back to the
+		// server's list would mean that on a machine with no history — a fresh
+		// checkout, a CI container — `--all` silently widens from "the handful
+		// I uploaded" to "everything anyone uploaded with this token", which is
+		// not a mistake anyone gets to undo. Use `send ls --remote --urls |
+		// xargs send rm` to mean that on purpose.
 		targets = nil
 		for _, e := range history.Entries {
 			targets = append(targets, e.URL)
-		}
-		if len(targets) == 0 {
-			for _, e := range remote.all() {
-				targets = append(targets, e.URL)
-			}
 		}
 	}
 
