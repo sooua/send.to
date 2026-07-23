@@ -221,6 +221,13 @@ func acceptsHTML(hdr http.Header) bool {
 }
 
 func formatSize(size int64) string {
+	// log(0) is -Inf, which indexes the suffix table with a very negative
+	// number and panics. Nothing used to pass zero here; the storage quota,
+	// reported at startup on an empty instance, does.
+	if size <= 0 {
+		return "0 B"
+	}
+
 	sizeFloat := float64(size)
 	base := math.Log(sizeFloat) / math.Log(1024)
 

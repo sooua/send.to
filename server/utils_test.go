@@ -170,3 +170,14 @@ func TestMetadataRemainingLimitHeaderValues(t *testing.T) {
 		}
 	})
 }
+
+// formatSize(0) used to panic: log(0) is -Inf, which indexed the suffix table
+// with a huge negative number. An empty instance reporting its storage quota
+// at startup was enough to hit it.
+func TestFormatSizeZeroAndNegative(t *testing.T) {
+	for _, size := range []int64{0, -1} {
+		if got := formatSize(size); got != "0 B" {
+			t.Errorf("formatSize(%d) = %q, want \"0 B\"", size, got)
+		}
+	}
+}
