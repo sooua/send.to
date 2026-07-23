@@ -1,0 +1,18 @@
+---
+// Served by the Go server for any browser that opens a share link
+// (GET /{token}/{filename} with Accept: text/html). The page is static; the
+// component fills it in from the URL and a HEAD request.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import FilePreview from "../components/FilePreview";
+---
+
+<BaseLayout
+  title="Shared file — send.to"
+  description="A file shared with send.to. Download it, or copy the link."
+>
+  <section class="bg-background px-6 py-16 sm:py-24">
+    <div class="mx-auto max-w-2xl">
+      <FilePreview client:load />
+    </div>
+  </section>
+</BaseLayout>
