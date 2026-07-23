@@ -32,6 +32,11 @@ services:
       BASEDIR: "${BASEDIR:-/data}"
       LISTENER: ":18080"
       WEB_PATH: "${WEB_PATH:-/app/web}"
+      # Uploads are spooled here before they reach the storage backend
+      # (always when Content-Length is absent, and for every upload when the
+      # ClamAV prescan is on). It lives on the data volume rather than the
+      # small /tmp tmpfs so a large upload is bounded by disk, not by RAM.
+      TEMP_PATH: "${TEMP_PATH:-/data/tmp}"
 
       # Limits & lifecycle
       MAX_UPLOAD_SIZE: "${MAX_UPLOAD_SIZE:-0}"   # 0 = unlimited, value in KB
@@ -72,7 +77,8 @@ services:
       - no-new-privileges:true
     read_only: true
     tmpfs:
-      - /tmp:size=128M,uid=10001,gid=10001,mode=1777
+      # Scratch space only — upload spooling goes to TEMP_PATH on the volume.
+      - /tmp:size=64M,uid=10001,gid=10001,mode=1777
 
     logging:
       driver: json-file

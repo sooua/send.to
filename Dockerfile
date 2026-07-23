@@ -77,10 +77,13 @@ USER ${PUID}:${PGID}
 EXPOSE 18080
 VOLUME ["/data"]
 
+# TEMP_PATH is where uploads are spooled before they reach the backend, so it
+# must be disk-backed: compose mounts /tmp as a small tmpfs, which would
+# otherwise cap every chunked or virus-scanned upload at the tmpfs size.
 ENV PROVIDER=local \
     BASEDIR=/data \
     LISTENER=:18080 \
-    TEMP_PATH=/tmp \
+    TEMP_PATH=/data/tmp \
     WEB_PATH=/app/web
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

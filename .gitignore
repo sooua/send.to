@@ -25,6 +25,8 @@ coverage.html
 # Secrets and credentials
 .env
 .env.*
+# ...but the template carries no secrets and the deploy scripts copy it.
+!.env.example
 *.key
 *.pem
 *.htpasswd
