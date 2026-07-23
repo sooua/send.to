@@ -1,11 +1,12 @@
 BINARY       := send.to
+CLIENT       := send
 PKG          := github.com/sooua/send.to
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS      := -s -w -X main.version=$(VERSION)
 GOFILES      := $(shell find . -type f -name '*.go' -not -path './web/*')
 WEB_DIR      := web
 
-.PHONY: all build build-web build-server clean dev dev-server dev-web fmt help \
+.PHONY: all build build-web build-server build-client clean dev dev-server dev-web fmt help \
         lint lint-go lint-web test test-race coverage vet vuln tidy docker \
         docker-run pre-commit
 
@@ -13,7 +14,8 @@ all: build
 
 help:
 	@echo "Common targets:"
-	@echo "  make build        - build server binary and web bundle"
+	@echo "  make build        - build server + client binaries and web bundle"
+	@echo "  make build-client - build the 'send' CLI client only"
 	@echo "  make test         - run Go tests"
 	@echo "  make test-race    - run Go tests with -race"
 	@echo "  make coverage     - produce coverage.out + HTML"
@@ -23,22 +25,25 @@ help:
 	@echo "  make docker       - build docker image"
 	@echo "  make pre-commit   - fmt + vet + lint + test"
 
-build: build-web build-server
+build: build-web build-server build-client
 
 build-server:
 	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(BINARY) .
+
+build-client:
+	CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=$(VERSION)" -o $(CLIENT) ./cmd/send
 
 build-web:
 	cd $(WEB_DIR) && npm ci && npm run build
 
 clean:
-	rm -f $(BINARY) coverage.out coverage.html
+	rm -f $(BINARY) $(CLIENT) coverage.out coverage.html
 	rm -rf $(WEB_DIR)/dist $(WEB_DIR)/node_modules/.cache
 
 fmt:
 	gofmt -s -w $(GOFILES)
 
-GO_PKGS := ./cmd/... ./internal/... ./server/... .
+GO_PKGS := ./client/... ./cmd/... ./internal/... ./server/... .
 
 vet:
 	go vet $(GO_PKGS)

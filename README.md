@@ -36,6 +36,7 @@ One static Go binary. One 52 MB Docker image. No database. No account. Your file
 - [Features](#features)
 - [Quick start](#quick-start)
 - [Usage](#usage)
+- [The `send` CLI](#the-send-cli)
 - [HTTP API](#http-api)
 - [Configuration](#configuration)
 - [Deployment](#deployment)
@@ -196,6 +197,44 @@ Drop this in your `~/.bashrc` / `~/.zshrc`:
 send() { curl --progress-bar --upload-file "$1" "https://send.to/$(basename "$1")"; }
 # then:  send ./report.pdf
 ```
+
+---
+
+## The `send` CLI
+
+A shell alias gets you a URL. The client gets you a URL you can find again.
+
+```bash
+send config add home https://send.to --default     # once
+send put report.pdf                                # every day after
+```
+
+```
+send put ./build.tar.gz --days 7 --max-downloads 3
+send get https://send.to/aB3cD4eF/build.tar.gz     # resumes if interrupted
+send info https://send.to/aB3cD4eF/build.tar.gz    # limits, without spending one
+send ls                                            # what this machine uploaded
+send rm https://send.to/aB3cD4eF/build.tar.gz      # uses the stored delete link
+```
+
+| Command | What it does |
+| ------- | ------------ |
+| `send put <file>...` | Upload; `-` reads stdin (`--name` required) |
+| `send get <url>` | Download, resuming a partial file automatically |
+| `send info <url>` | Size and remaining limits — `HEAD`, so it costs no download |
+| `send ls` | Local upload history: links, expiry, delete links |
+| `send rm <url>` | Delete, using the deletion link recorded at upload time |
+| `send config` | Named server profiles, `--default`, basic auth |
+
+Flags work wherever you put them: `send put a.txt --days 7` does what it looks
+like, rather than silently uploading with no expiry.
+
+The history lives in `send config path` (`~/.config/sendto` on Linux). Losing
+a link no longer means losing the ability to delete the file — the one thing a
+`curl` alias can never do for you.
+
+`SENDTO_URL`, `SENDTO_USER` and `SENDTO_PASS` override the config file, so CI
+needs no state on disk.
 
 ---
 

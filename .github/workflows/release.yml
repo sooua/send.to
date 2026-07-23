@@ -117,6 +117,10 @@ jobs:
           mkdir -p build_assets
           go build -tags netgo -ldflags "-X github.com/sooua/send.to/cmd.Version=${GITHUB_REF##*/} -a -s -w -extldflags '-static'" -o build_assets/sendto-${GITHUB_REF##*/}-${ASSET_NAME}
 
+      - name: Build send client
+        run: |
+          go build -tags netgo -ldflags "-X main.version=${GITHUB_REF##*/} -a -s -w -extldflags '-static'" -o build_assets/send${{ matrix.goos == 'windows' && '.exe' || '' }} ./cmd/send
+
       - name: Build Mips softfloat sendto
         if: matrix.goarch == 'mips' || matrix.goarch == 'mipsle'
         run: |

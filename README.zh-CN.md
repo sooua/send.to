@@ -36,6 +36,7 @@ curl https://send.to/aB3cD4eF/build.tar.gz -o build.tar.gz
 - [功能特性](#功能特性)
 - [快速开始](#快速开始)
 - [使用示例](#使用示例)
+- [`send` 命令行客户端](#send-命令行客户端)
 - [HTTP API](#http-api)
 - [配置](#配置)
 - [部署](#部署)
@@ -198,6 +199,41 @@ send() { curl --progress-bar --upload-file "$1" "https://send.to/$(basename "$1"
 ---
 
 更多配方 —— fish / PowerShell 别名、加密数据库备份、CI 片段 —— 见 [examples.zh-CN.md](./examples.zh-CN.md)。
+
+---
+
+## `send` 命令行客户端
+
+Shell 别名只能给你一个链接。客户端能让你**再找回**这个链接。
+
+```bash
+send config add home https://send.to --default     # 配一次
+send put report.pdf                                # 以后每天就这一行
+```
+
+```
+send put ./build.tar.gz --days 7 --max-downloads 3
+send get https://send.to/aB3cD4eF/build.tar.gz     # 中断后自动续传
+send info https://send.to/aB3cD4eF/build.tar.gz    # 查限额，且不消耗次数
+send ls                                            # 这台机器传过什么
+send rm https://send.to/aB3cD4eF/build.tar.gz      # 用本地存的删除链接
+```
+
+| 命令 | 作用 |
+| ---- | ---- |
+| `send put <文件>...` | 上传；`-` 读 stdin（需配合 `--name`） |
+| `send get <url>` | 下载，自动续传未完成的文件 |
+| `send info <url>` | 大小与剩余限额 —— 走 `HEAD`，不消耗下载次数 |
+| `send ls` | 本地上传历史：链接、过期时间、删除链接 |
+| `send rm <url>` | 用上传时记录的删除链接删文件 |
+| `send config` | 命名服务器配置、`--default`、Basic Auth |
+
+参数放在哪都生效：`send put a.txt --days 7` 就是字面意思，不会静默变成「不过期」。
+
+历史文件在 `send config path`（Linux 上是 `~/.config/sendto`）。链接丢了不再等于
+永远删不掉文件 —— 这是 `curl` 别名永远做不到的一件事。
+
+`SENDTO_URL`、`SENDTO_USER`、`SENDTO_PASS` 优先于配置文件，CI 里不需要落盘任何状态。
 
 ---
 
