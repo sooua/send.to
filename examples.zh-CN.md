@@ -117,6 +117,48 @@ curl -u user:pass --upload-file ./notes.md https://send.to/notes.md
 
 ---
 
+## 断点续传大文件
+
+16 MiB 以上的文件会自动分片上传，`send put` 会记住这次会话：再跑一遍同样的命令，
+就从服务端停下的那个字节接着传。
+
+```bash
+send put ./build.tar.gz --days 7
+# ……网络断了……
+send put ./build.tar.gz --days 7
+# resuming at 1.4 GB of 5.0 GB
+```
+
+客户端加密同样支持 —— 密文会从服务端已有的偏移量重新生成：
+
+```bash
+send put ./db-dump.sql.gz --e2e
+```
+
+只用 curl 的话，自己走这三个调用：
+
+```bash
+file=build.tar.gz
+size=$(stat -c%s "$file")
+
+session=$(curl -sS -D- -o /dev/null -X POST -H "Upload-Length: $size"     https://send.to/upload/"$file" | awk '/^[Ll]ocation:/{print $2}' | tr -d '')
+
+offset=0
+chunk=$((8 * 1024 * 1024))
+
+while [ "$offset" -lt "$size" ]; do
+    end=$((offset + chunk - 1))
+    [ "$end" -ge "$size" ] && end=$((size - 1))
+
+    dd if="$file" bs=1 skip="$offset" count=$((end - offset + 1)) 2>/dev/null |
+        curl -sS -X PATCH -H "Content-Range: bytes $offset-$end/$size"              --data-binary @- "$session"
+
+    # 不要自己假设进度，问服务端：失败的分片根本没落盘
+    offset=$(curl -sS -I "$session" | awk '/^[Uu]pload-[Oo]ffset:/{print $2}' | tr -d '')
+    [ -z "$offset" ] && break   # 没有偏移量可报，说明已经传完
+done
+```
+
 ## 下载
 
 ```bash

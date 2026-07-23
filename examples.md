@@ -117,6 +117,49 @@ curl -u user:pass --upload-file ./notes.md https://send.to/notes.md
 
 ---
 
+## Resuming a big upload
+
+Anything from 16 MiB up goes out in chunks, and `send put` remembers the session:
+run the same command again and it continues from the byte the server stopped at.
+
+```bash
+send put ./build.tar.gz --days 7
+# ...network dies...
+send put ./build.tar.gz --days 7
+# resuming at 1.4 GB of 5.0 GB
+```
+
+The same works with client-side encryption — the ciphertext is regenerated from
+the offset the server already has:
+
+```bash
+send put ./db-dump.sql.gz --e2e
+```
+
+With plain curl, drive the three calls yourself:
+
+```bash
+file=build.tar.gz
+size=$(stat -c%s "$file")
+
+session=$(curl -sS -D- -o /dev/null -X POST -H "Upload-Length: $size"     https://send.to/upload/"$file" | awk '/^[Ll]ocation:/{print $2}' | tr -d '')
+
+offset=0
+chunk=$((8 * 1024 * 1024))
+
+while [ "$offset" -lt "$size" ]; do
+    end=$((offset + chunk - 1))
+    [ "$end" -ge "$size" ] && end=$((size - 1))
+
+    dd if="$file" bs=1 skip="$offset" count=$((end - offset + 1)) 2>/dev/null |
+        curl -sS -X PATCH -H "Content-Range: bytes $offset-$end/$size"              --data-binary @- "$session"
+
+    # Ask the server rather than assuming: a chunk that failed did not land.
+    offset=$(curl -sS -I "$session" | awk '/^[Uu]pload-[Oo]ffset:/{print $2}' | tr -d '')
+    [ -z "$offset" ] && break   # no offset left to report: the upload finished
+done
+```
+
 ## Downloading
 
 ```bash

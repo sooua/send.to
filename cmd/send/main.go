@@ -187,7 +187,7 @@ func runPut(c *cli.Context) error {
 	quiet := c.Bool("quiet")
 
 	for _, arg := range c.Args().Slice() {
-		result, err := uploadOne(c.Context, api, arg, c.String("name"), opts, quiet, c.Bool("e2e"))
+		result, err := uploadOne(c.Context, api, profile.URL, arg, c.String("name"), opts, quiet, c.Bool("e2e"))
 		if err != nil {
 			return err
 		}
@@ -215,7 +215,7 @@ func runPut(c *cli.Context) error {
 	return nil
 }
 
-func uploadOne(ctx context.Context, api *client.Client, arg, nameOverride string, opts client.UploadOptions, quiet, e2e bool) (*client.Result, error) {
+func uploadOne(ctx context.Context, api *client.Client, server, arg, nameOverride string, opts client.UploadOptions, quiet, e2e bool) (*client.Result, error) {
 	name := nameOverride
 
 	if arg == "-" {
@@ -237,6 +237,22 @@ func uploadOne(ctx context.Context, api *client.Client, arg, nameOverride string
 	}
 
 	size := client.FileSize(f)
+
+	// Big enough to be worth the extra round trips: an interrupted transfer
+	// resumes instead of starting over. A server without the endpoint falls
+	// back to a plain PUT, so this stays safe against older instances.
+	if size >= client.ResumableThreshold {
+		result, err := uploadResumable(ctx, api, server, arg, f, name, size, opts, quiet, e2e)
+		if err == nil {
+			return result, nil
+		}
+		if !errors.Is(err, client.ErrResumableUnsupported) {
+			return nil, err
+		}
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			return nil, err
+		}
+	}
 
 	var body io.Reader = f
 	if !quiet && size > 0 {

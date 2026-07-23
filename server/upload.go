@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -179,7 +180,7 @@ func (s *Server) storeMultipartFile(w http.ResponseWriter, r *http.Request, toke
 		return result, err
 	}
 
-	if err := s.store(r, token, filename, file, contentType, contentLength, metadata); err != nil {
+	if err := s.store(r.Context(), token, filename, file, contentType, contentLength, metadata, r.Header.Get("X-Encrypt-Password")); err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Backend storage error", "error", err)
 		http.Error(w, "Could not save file", http.StatusInternalServerError)
@@ -269,15 +270,20 @@ func (s *Server) putHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.store(r, token, filename, reader, contentType, contentLength, metadata); err != nil {
+	if err := s.store(r.Context(), token, filename, reader, contentType, contentLength, metadata, r.Header.Get("X-Encrypt-Password")); err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Error putting new file", "error", err)
 		http.Error(w, "Could not save file", http.StatusInternalServerError)
 		return
 	}
 
-	result := s.newUploadResult(r, token, filename, metadata)
+	s.writeUploadResponse(w, r, s.newUploadResult(r, token, filename, metadata))
+}
 
+// writeUploadResponse answers a completed upload: a bare URL for curl, the full
+// record for `Accept: application/json`, and the delete link in a header for
+// both. Shared so a resumable upload is indistinguishable from a plain PUT.
+func (s *Server) writeUploadResponse(w http.ResponseWriter, r *http.Request, result uploadResult) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Url-Delete", result.DeleteURL)
 
@@ -316,20 +322,24 @@ func (s *Server) prescan(w http.ResponseWriter, path string) error {
 	return nil
 }
 
-// store writes the metadata sidecar and then the payload itself.
-func (s *Server) store(r *http.Request, token, filename string, reader io.Reader, contentType string, contentLength int64, m metadata) error {
+// store writes the metadata sidecar and then the payload itself. The
+// server-side encryption password is passed explicitly rather than read back
+// off the request: a resumable upload finishes on a request that never carried
+// one, and a silent mismatch between metadata.Encrypted and the stored bytes
+// would leave the file unreadable.
+func (s *Server) store(ctx context.Context, token, filename string, reader io.Reader, contentType string, contentLength int64, m metadata, password string) error {
 	buffer := &bytes.Buffer{}
 	if err := json.NewEncoder(buffer).Encode(m); err != nil {
 		return fmt.Errorf("could not encode metadata: %w", err)
 	}
 
-	if err := s.storage.Put(r.Context(), token, fmt.Sprintf("%s.metadata", filename), buffer, "text/json", uint64(buffer.Len())); err != nil {
+	if err := s.storage.Put(ctx, token, fmt.Sprintf("%s.metadata", filename), buffer, "text/json", uint64(buffer.Len())); err != nil {
 		return fmt.Errorf("could not save metadata: %w", err)
 	}
 
 	s.logger.Info("Uploading", "token", maskToken(token), "filename", filename, "content_length", contentLength, "content_type", contentType)
 
-	payload, err := attachEncryptionReader(io.NopCloser(reader), r.Header.Get("X-Encrypt-Password"))
+	payload, err := attachEncryptionReader(io.NopCloser(reader), password)
 	if err != nil {
 		return fmt.Errorf("could not encrypt file: %w", err)
 	}
@@ -343,10 +353,10 @@ func (s *Server) store(r *http.Request, token, filename string, reader io.Reader
 		storedLength = 0
 	}
 
-	if err := s.storage.Put(r.Context(), token, filename, payload, contentType, storedLength); err != nil {
+	if err := s.storage.Put(ctx, token, filename, payload, contentType, storedLength); err != nil {
 		// The metadata sidecar is already written; drop it so the token
 		// cannot resolve to a half-created upload.
-		if delErr := s.storage.Delete(r.Context(), token, filename); delErr != nil && !s.storage.IsNotExist(delErr) {
+		if delErr := s.storage.Delete(ctx, token, filename); delErr != nil && !s.storage.IsNotExist(delErr) {
 			s.logger.Error("Could not roll back metadata after failed upload", "token", maskToken(token), "filename", filename, "error", delErr)
 		}
 		return err
@@ -419,6 +429,13 @@ func contentTypeForFilename(filename string) string {
 const maxDaysLimit = 36500
 
 func metadataForRequest(contentType string, contentLength int64, randomTokenLength int, r *http.Request) (metadata, error) {
+	return metadataForHeaders(contentType, contentLength, randomTokenLength, r.Header)
+}
+
+// metadataForHeaders builds the stored metadata from the upload's option
+// headers. Split out from the request so a resumable upload can apply the
+// options it was created with, hours after that request finished.
+func metadataForHeaders(contentType string, contentLength int64, randomTokenLength int, h http.Header) (metadata, error) {
 	metadata := metadata{
 		ContentType:   strings.ToLower(contentType),
 		ContentLength: contentLength,
@@ -431,7 +448,7 @@ func metadataForRequest(contentType string, contentLength int64, randomTokenLeng
 	// A malformed limit used to be discarded silently, so a typo in
 	// Max-Downloads produced a link that never expired while the uploader
 	// believed it would. Reject it instead.
-	if v := r.Header.Get("Max-Downloads"); v != "" {
+	if v := h.Get("Max-Downloads"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 1 {
 			return metadata, errors.New("Max-Downloads must be a positive integer")
@@ -439,7 +456,7 @@ func metadataForRequest(contentType string, contentLength int64, randomTokenLeng
 		metadata.MaxDownloads = n
 	}
 
-	if v := r.Header.Get("Max-Days"); v != "" {
+	if v := h.Get("Max-Days"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 1 {
 			return metadata, errors.New("Max-Days must be a positive integer")
@@ -450,7 +467,7 @@ func metadataForRequest(contentType string, contentLength int64, randomTokenLeng
 		metadata.MaxDate = time.Now().Add(time.Hour * 24 * time.Duration(n))
 	}
 
-	if password := r.Header.Get("X-Encrypt-Password"); password != "" {
+	if password := h.Get("X-Encrypt-Password"); password != "" {
 		metadata.Encrypted = true
 		metadata.ContentType = "text/plain; charset=utf-8"
 		metadata.DecryptedContentType = strings.ToLower(contentType)

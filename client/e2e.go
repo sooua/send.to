@@ -149,20 +149,48 @@ func e2eAEAD(key E2EKey) (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
-// E2EEncrypt returns a reader over the encrypted stream. Encryption happens as
-// the reader is consumed, so memory use is one chunk regardless of file size.
-func E2EEncrypt(plaintext io.Reader, key E2EKey, meta E2EMetadata) (io.Reader, error) {
-	aead, err := e2eAEAD(key)
-	if err != nil {
-		return nil, err
-	}
+// E2EStream is one encryption of one file. Because the ciphertext is a pure
+// function of the key, the nonce prefix and the plaintext, a stream can
+// regenerate its own bytes from any offset — which is what makes an interrupted
+// client-side-encrypted upload resumable rather than a restart from zero.
+type E2EStream struct {
+	Key    E2EKey
+	Prefix []byte
+	Meta   E2EMetadata
+}
 
+// NewE2EStream starts an encryption with a fresh random nonce prefix.
+func NewE2EStream(key E2EKey, meta E2EMetadata) (*E2EStream, error) {
 	prefix := make([]byte, e2eNoncePrefixSize)
 	if _, err := rand.Read(prefix); err != nil {
 		return nil, fmt.Errorf("could not generate a nonce: %w", err)
 	}
 
-	metaJSON, err := json.Marshal(meta)
+	return NewE2EStreamWithPrefix(key, prefix, meta)
+}
+
+// NewE2EStreamWithPrefix rebuilds a stream from a prefix recorded earlier, so a
+// resumed upload continues the ciphertext the server already holds instead of
+// starting a different one.
+func NewE2EStreamWithPrefix(key E2EKey, prefix []byte, meta E2EMetadata) (*E2EStream, error) {
+	if len(key) != e2eKeySize {
+		return nil, fmt.Errorf("malformed key: got %d bytes, want %d", len(key), e2eKeySize)
+	}
+	if len(prefix) != e2eNoncePrefixSize {
+		return nil, fmt.Errorf("malformed nonce prefix: got %d bytes, want %d", len(prefix), e2eNoncePrefixSize)
+	}
+
+	return &E2EStream{Key: key, Prefix: prefix, Meta: meta}, nil
+}
+
+// header is the fixed part of the format plus the encrypted metadata chunk.
+func (s *E2EStream) header() ([]byte, error) {
+	aead, err := e2eAEAD(s.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	metaJSON, err := json.Marshal(s.Meta)
 	if err != nil {
 		return nil, err
 	}
@@ -170,32 +198,105 @@ func E2EEncrypt(plaintext io.Reader, key E2EKey, meta E2EMetadata) (io.Reader, e
 		return nil, errors.New("metadata is too large")
 	}
 
-	pr, pw := io.Pipe()
-
 	// Chunk 0 is the metadata; the payload starts at 1.
-	sealedMeta := aead.Seal(nil, e2eNonce(prefix, 0, false), metaJSON, nil)
+	sealedMeta := aead.Seal(nil, e2eNonce(s.Prefix, 0, false), metaJSON, nil)
 	if len(sealedMeta) > 0xFFFF {
 		return nil, errors.New("metadata is too large")
 	}
 
-	go func() {
-		header := append([]byte(e2eMagic), prefix...)
-		header = binary.BigEndian.AppendUint16(header, uint16(len(sealedMeta)))
+	header := append([]byte(e2eMagic), s.Prefix...)
+	header = binary.BigEndian.AppendUint16(header, uint16(len(sealedMeta)))
 
-		if _, err := pw.Write(header); err != nil {
-			_ = pw.CloseWithError(err)
-			return
+	return append(header, sealedMeta...), nil
+}
+
+// Size returns the exact ciphertext length for a plaintext of n bytes.
+func (s *E2EStream) Size(n int64) (int64, error) {
+	return E2EEncryptedSize(n, s.Meta)
+}
+
+// Reader returns the whole ciphertext, encrypting as it is consumed so memory
+// use is one chunk regardless of file size.
+func (s *E2EStream) Reader(plaintext io.Reader) (io.Reader, error) {
+	header, err := s.header()
+	if err != nil {
+		return nil, err
+	}
+
+	return s.chunks(plaintext, header, 1)
+}
+
+// ReaderFrom returns the ciphertext from byte offset onwards. The plaintext is
+// rewound to the chunk the offset falls in and the leading bytes of that chunk
+// are discarded, so any offset works — not only chunk boundaries.
+func (s *E2EStream) ReaderFrom(plaintext io.ReadSeeker, offset int64) (io.ReadCloser, error) {
+	if offset < 0 {
+		return nil, errors.New("negative offset")
+	}
+
+	header, err := s.header()
+	if err != nil {
+		return nil, err
+	}
+
+	headerLen := int64(len(header))
+
+	var (
+		counter     = uint32(1)
+		plainOffset int64
+		skip        = offset
+	)
+
+	if offset >= headerLen {
+		index := (offset - headerLen) / e2eChunkCipherSize
+		counter = uint32(index) + 1
+		plainOffset = index * e2eChunkSize
+		skip = (offset - headerLen) - index*e2eChunkCipherSize
+		header = nil
+	}
+
+	if _, err := plaintext.Seek(plainOffset, io.SeekStart); err != nil {
+		return nil, err
+	}
+
+	reader, err := s.chunks(plaintext, header, counter)
+	if err != nil {
+		return nil, err
+	}
+
+	if skip > 0 {
+		if _, err := io.CopyN(io.Discard, reader, skip); err != nil {
+			_ = reader.Close()
+			return nil, err
 		}
+	}
 
-		if _, err := pw.Write(sealedMeta); err != nil {
-			_ = pw.CloseWithError(err)
-			return
+	return reader, nil
+}
+
+// chunks writes header (which may be empty) and then every chunk from counter
+// onwards into a pipe. Closing the returned reader stops the goroutine.
+func (s *E2EStream) chunks(plaintext io.Reader, header []byte, counter uint32) (io.ReadCloser, error) {
+	aead, err := e2eAEAD(s.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	prefix := s.Prefix
+	pr, pw := io.Pipe()
+
+	go func() {
+		if len(header) > 0 {
+			if _, err := pw.Write(header); err != nil {
+				_ = pw.CloseWithError(err)
+				return
+			}
 		}
 
 		buf := make([]byte, e2eChunkSize)
 		reader := bufio.NewReaderSize(plaintext, e2eChunkSize)
 
-		for counter := uint32(1); ; counter++ {
+		for ; ; counter++ {
 			n, readErr := io.ReadFull(reader, buf)
 
 			final := false
@@ -228,6 +329,17 @@ func E2EEncrypt(plaintext io.Reader, key E2EKey, meta E2EMetadata) (io.Reader, e
 	}()
 
 	return pr, nil
+}
+
+// E2EEncrypt returns a reader over the encrypted stream. Encryption happens as
+// the reader is consumed, so memory use is one chunk regardless of file size.
+func E2EEncrypt(plaintext io.Reader, key E2EKey, meta E2EMetadata) (io.Reader, error) {
+	stream, err := NewE2EStream(key, meta)
+	if err != nil {
+		return nil, err
+	}
+
+	return stream.Reader(plaintext)
 }
 
 // E2EEncryptedSize returns the exact ciphertext length for a plaintext of size

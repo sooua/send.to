@@ -277,6 +277,10 @@ file whose fragment was lost.
 | ------ | ---------------------------------- | ------------------------------- |
 | `PUT`  | `/{filename}`                      | Upload a single file            |
 | `POST` | `/`                                | Multipart upload (one or many)  |
+| `POST` | `/upload/{filename}`               | Start a resumable upload        |
+| `PATCH`| `/upload/{id}/{filename}`          | Send one chunk of a resumable upload |
+| `HEAD` | `/upload/{id}/{filename}`          | How many bytes the server holds |
+| `DELETE`| `/upload/{id}/{filename}`         | Abandon a resumable upload      |
 | `GET`  | `/{token}/{filename}`              | Download or preview             |
 | `HEAD` | `/{token}/{filename}`              | Metadata only                   |
 | `GET`  | `/({files}).{zip,tar,tar.gz}`      | Combine files into an archive   |
@@ -301,6 +305,55 @@ file whose fragment was lost.
 | `X-Url-Delete`         | Authenticated URL to `DELETE` this upload           |
 | `X-Remaining-Days`     | Days until auto-expiry                              |
 | `X-Remaining-Downloads`| Downloads remaining under the cap                   |
+
+### Resumable uploads
+
+A `PUT` is all or nothing: lose the link at 90% of a 5 GB artefact and all of it
+is gone. A resumable upload is a session plus chunks, and a chunk is the only
+thing a failure can cost.
+
+```bash
+size=$(stat -c%s build.tar.gz)
+
+# Open a session; the URL comes back in Location.
+session=$(curl -sS -D- -o /dev/null -X POST     -H "Upload-Length: $size" -H "Max-Days: 7"     https://send.to/upload/build.tar.gz | awk '/^[Ll]ocation:/{print $2}' | tr -d '')
+
+# Send a chunk. 204 means "keep going", and Upload-Offset says from where.
+curl -sS -X PATCH -H "Content-Range: bytes 0-8388607/$size"     --data-binary @chunk-0 "$session"
+
+# Ask where to resume after anything goes wrong.
+curl -sS -I "$session" | grep -i upload-offset
+
+# The chunk that completes the file answers exactly like a plain PUT:
+# the share URL, with the delete link in X-Url-Delete.
+curl -sS -X PATCH -H "Content-Range: bytes 8388608-$((size - 1))/$size"     --data-binary @chunk-1 "$session"
+```
+
+Rules worth knowing:
+
+- A chunk is **all or nothing**. A body that arrives short is discarded and the
+  offset stays where it was, so the offset you resume from is always one you
+  chose.
+- Sending the wrong offset answers `409 Conflict` with `Upload-Offset` set to
+  the right one, rather than corrupting the file.
+- Bytes are spooled under `TEMP_PATH` and only reach the storage backend when
+  the upload completes — an interrupted upload is never a visible half file.
+- Sessions expire after 24 hours and take their spool file with them.
+- `X-Encrypt-Password` is rejected here: the server would have to keep it in
+  clear between chunks. Encrypt on the client instead (`send put --e2e`).
+
+`send put` uses this automatically for files of 16 MiB and up, records the
+session, and continues it on the next run — including for `--e2e`, where the
+ciphertext is regenerated from the offset the server stopped at:
+
+```
+$ send put build.tar.gz
+^C
+$ send put build.tar.gz
+resuming at 1.4 GB of 5.0 GB
+```
+
+Against a server without these endpoints the client falls back to a plain `PUT`.
 
 ### JSON responses
 

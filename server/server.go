@@ -352,6 +352,9 @@ type Server struct {
 	locksMu sync.Mutex
 	locks   map[string]*fileLock
 
+	sessionSweepMu   sync.Mutex
+	lastSessionSweep time.Time
+
 	maxUploadSize     int64
 	rateLimitRequests int
 	rateLimiter       *ipRateLimiter
@@ -638,6 +641,15 @@ func (s *Server) Run() {
 	r.HandleFunc("/({files:.*}).tar", s.rateLimit(http.HandlerFunc(s.tarHandler))).Methods("GET")
 	r.HandleFunc("/({files:.*}).tar.gz", s.rateLimit(http.HandlerFunc(s.tarGzHandler))).Methods("GET")
 
+	// Resumable uploads. Registered ahead of the download and deletion routes
+	// because `/upload/{id}/{filename}` and `/{token}/{filename}/{deleteToken}`
+	// have the same shape; first match wins, and an upload token can never
+	// collide with the literal "upload" at any sane --random-token-length.
+	r.HandleFunc("/upload/{filename}", s.basicAuthHandler(s.rateLimit(http.HandlerFunc(s.createUploadSessionHandler)))).Methods("POST")
+	r.HandleFunc("/upload/{id}/{filename}", s.basicAuthHandler(s.rateLimit(http.HandlerFunc(s.patchUploadSessionHandler)))).Methods("PATCH")
+	r.HandleFunc("/upload/{id}/{filename}", s.basicAuthHandler(http.HandlerFunc(s.headUploadSessionHandler))).Methods("HEAD")
+	r.HandleFunc("/upload/{id}/{filename}", s.basicAuthHandler(http.HandlerFunc(s.deleteUploadSessionHandler))).Methods("DELETE")
+
 	r.HandleFunc("/{token}/{filename}", s.headHandler).Methods("HEAD")
 	r.HandleFunc("/{action:(?:download|get|inline)}/{token}/{filename}", s.headHandler).Methods("HEAD")
 
@@ -700,9 +712,9 @@ func (s *Server) Run() {
 			if origin != "" {
 				if allowedOrigins == nil || allowedOrigins[origin] {
 					w.Header().Set("Access-Control-Allow-Origin", origin)
-					w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, DELETE, OPTIONS")
-					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Max-Downloads, Max-Days, X-Encrypt-Password, X-Decrypt-Password, Authorization")
-					w.Header().Set("Access-Control-Expose-Headers", "X-Url-Delete")
+					w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS")
+					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Range, Max-Downloads, Max-Days, Upload-Length, X-Encrypt-Password, X-Decrypt-Password, Authorization")
+					w.Header().Set("Access-Control-Expose-Headers", "X-Url-Delete, Location, Upload-Offset, Upload-Length, Upload-Expires")
 					w.Header().Set("Access-Control-Max-Age", "86400")
 				}
 			}

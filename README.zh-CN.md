@@ -270,6 +270,10 @@ AES-256-GCM，64 KiB 分块，分块计数器和末块标记都折进 nonce，�
 | -------- | ----------------------------------- | ---------------------------- |
 | `PUT`    | `/{filename}`                       | 上传单个文件                 |
 | `POST`   | `/`                                 | Multipart 上传（单个或多个） |
+| `POST`   | `/upload/{filename}`                | 开始分片续传上传             |
+| `PATCH`  | `/upload/{id}/{filename}`           | 上传一个分片                 |
+| `HEAD`   | `/upload/{id}/{filename}`           | 查询服务端已收到多少字节     |
+| `DELETE` | `/upload/{id}/{filename}`           | 放弃这次续传上传             |
 | `GET`    | `/{token}/{filename}`               | 下载或预览                   |
 | `HEAD`   | `/{token}/{filename}`               | 只取元数据                   |
 | `GET`    | `/({files}).{zip,tar,tar.gz}`       | 将多个文件打包下载           |
@@ -294,6 +298,52 @@ AES-256-GCM，64 KiB 分块，分块计数器和末块标记都折进 nonce，�
 | `X-Url-Delete`          | 可直接 `DELETE` 的删除链接                           |
 | `X-Remaining-Days`      | 还剩多少天过期                                       |
 | `X-Remaining-Downloads` | 还剩多少次下载配额                                   |
+
+### 分片续传上传
+
+`PUT` 是全有或全无：5 GB 的构建产物传到 90% 断线，前面的全部作废。续传上传把
+一次上传拆成「会话 + 分片」，一次失败最多只损失一个分片。
+
+```bash
+size=$(stat -c%s build.tar.gz)
+
+# 建立会话，URL 在 Location 响应头里返回
+session=$(curl -sS -D- -o /dev/null -X POST     -H "Upload-Length: $size" -H "Max-Days: 7"     https://send.to/upload/build.tar.gz | awk '/^[Ll]ocation:/{print $2}' | tr -d '')
+
+# 发送一个分片。204 表示「继续」，Upload-Offset 告诉你从哪继续
+curl -sS -X PATCH -H "Content-Range: bytes 0-8388607/$size"     --data-binary @chunk-0 "$session"
+
+# 任何异常之后，用 HEAD 问服务端该从哪续
+curl -sS -I "$session" | grep -i upload-offset
+
+# 补齐最后一个分片时的响应与普通 PUT 完全一致：
+# 返回分享链接，删除链接在 X-Url-Delete 里
+curl -sS -X PATCH -H "Content-Range: bytes 8388608-$((size - 1))/$size"     --data-binary @chunk-1 "$session"
+```
+
+几条需要知道的规则：
+
+- 分片是**原子**的。传到一半断掉的分片会被丢弃、偏移量不变，所以你续传的位置
+  永远是你自己选的位置。
+- 偏移量对不上会返回 `409 Conflict`，并在 `Upload-Offset` 里给出正确值，而不是
+  把文件写坏。
+- 分片先落在 `TEMP_PATH`，全部传完才写入存储后端 —— 中断的上传不会变成一个
+  能被别人下载到的半截文件。
+- 会话 24 小时过期，过期时连同临时文件一起清掉。
+- 这里不接受 `X-Encrypt-Password`：服务端要在分片之间保存明文密码才能做到，
+  代价太大。请改用客户端加密（`send put --e2e`）。
+
+`send put` 对 16 MiB 以上的文件自动走这条路径，并把会话记录在本地，下次运行
+直接接着传 —— `--e2e` 同样支持，密文会从服务端停下的偏移量重新生成：
+
+```
+$ send put build.tar.gz
+^C
+$ send put build.tar.gz
+resuming at 1.4 GB of 5.0 GB
+```
+
+如果服务端没有这些端点，客户端会自动退回普通 `PUT`。
 
 ### JSON 响应
 
