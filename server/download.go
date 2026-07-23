@@ -340,10 +340,15 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 	s.metrics.downloads.Add(1)
 	s.metrics.downloadBytes.Add(uint64(written))
 
-	// A Range request is one slice of a resumed or seeking transfer, not a
-	// distinct download. Counting them made `curl -C -` and every media
-	// player that probes a file burn the Max-Downloads budget.
-	if rng != nil {
+	// A Range request that starts partway through the file is the tail of a
+	// resumed or seeking transfer, not a distinct download — counting those
+	// made `curl -C -` and every media player that probes a file burn the
+	// Max-Downloads budget.
+	//
+	// A range starting at zero is a full transfer by another name, so it does
+	// count. Skipping those too would let anyone bypass Max-Downloads entirely
+	// by always sending `Range: bytes=0-`.
+	if rng != nil && rng.Start > 0 {
 		return
 	}
 

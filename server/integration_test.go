@@ -382,10 +382,11 @@ func TestGetHandlerRangeDoesNotCountAsDownload(t *testing.T) {
 	parts := strings.Split(strings.TrimPrefix(uploadURL, "http://"), "/")
 	tok := parts[len(parts)-2]
 
-	// Two partial reads of the same file.
-	for i := 0; i < 2; i++ {
+	// Resuming: a range that starts partway through the file is the tail of a
+	// transfer, so it must not spend the budget however often it is repeated.
+	for i := 0; i < 3; i++ {
 		getReq := httptest.NewRequest("GET", "/"+tok+"/"+filename, nil)
-		getReq.Header.Set("Range", "bytes=0-4")
+		getReq.Header.Set("Range", "bytes=5-9")
 		getReq = mux.SetURLVars(getReq, map[string]string{"token": tok, "filename": filename})
 
 		getW := httptest.NewRecorder()
@@ -398,10 +399,10 @@ func TestGetHandlerRangeDoesNotCountAsDownload(t *testing.T) {
 
 	meta, err := srvr.checkMetadata(context.Background(), tok, filename)
 	if err != nil {
-		t.Fatalf("upload should still be available after range requests: %v", err)
+		t.Fatalf("upload should still be available after resumed ranges: %v", err)
 	}
 	if meta.Downloads != 0 {
-		t.Errorf("downloads = %d after range requests, want 0", meta.Downloads)
+		t.Errorf("downloads = %d after resumed ranges, want 0", meta.Downloads)
 	}
 
 	// A full download does count, and exhausts the single-download budget.
@@ -411,6 +412,37 @@ func TestGetHandlerRangeDoesNotCountAsDownload(t *testing.T) {
 
 	if _, err := srvr.checkMetadata(context.Background(), tok, filename); err == nil {
 		t.Error("expected upload to be exhausted after one full download")
+	}
+}
+
+// `Range: bytes=0-` is a whole-file transfer wearing a Range header. If it did
+// not count, Max-Downloads could be bypassed by always sending one.
+func TestGetHandlerRangeFromZeroCountsAsDownload(t *testing.T) {
+	srvr, tmpDir := newTestServer(t)
+	defer os.RemoveAll(tmpDir)
+
+	filename := "whole.txt"
+	fileContent := "0123456789"
+
+	req := httptest.NewRequest("PUT", "/"+filename, strings.NewReader(fileContent))
+	req.ContentLength = int64(len(fileContent))
+	req.Header.Set("Max-Downloads", "1")
+	req = mux.SetURLVars(req, map[string]string{"filename": filename})
+
+	w := httptest.NewRecorder()
+	srvr.putHandler(w, req)
+
+	body, _ := io.ReadAll(w.Result().Body)
+	parts := strings.Split(strings.TrimPrefix(strings.TrimSpace(string(body)), "http://"), "/")
+	tok := parts[len(parts)-2]
+
+	getReq := httptest.NewRequest("GET", "/"+tok+"/"+filename, nil)
+	getReq.Header.Set("Range", "bytes=0-")
+	getReq = mux.SetURLVars(getReq, map[string]string{"token": tok, "filename": filename})
+	srvr.getHandler(httptest.NewRecorder(), getReq)
+
+	if _, err := srvr.checkMetadata(context.Background(), tok, filename); err == nil {
+		t.Error("a range starting at zero should have spent the single download")
 	}
 }
 
