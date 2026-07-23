@@ -6,7 +6,7 @@
 #   .\scripts\deploy.ps1 -Stop           # stop a daemonised instance
 #   $env:PORT="9000"; .\scripts\deploy.ps1
 #
-# Requirements: Go 1.25+, Node 20+, npm on PATH.
+# Requirements: Go 1.25+, Node 22+, npm on PATH.
 
 [CmdletBinding()]
 param(

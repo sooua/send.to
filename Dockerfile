@@ -1,9 +1,13 @@
 # syntax=docker/dockerfile:1.7
 ARG GO_VERSION=1.25
-ARG NODE_VERSION=20
+# Astro 7 requires Node >= 22.12.
+ARG NODE_VERSION=22
 
 # ---------- Stage 1: build the web bundle ----------
-FROM node:${NODE_VERSION}-alpine AS web
+# Pinned to BUILDPLATFORM: the output is static HTML/CSS/JS with no
+# architecture of its own, and building it under emulation fails outright
+# because Tailwind's lightningcss ships no native binary for 32-bit ARM musl.
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS web
 WORKDIR /web
 
 # Cache dependencies independently of source changes.
@@ -15,8 +19,16 @@ RUN npm run build
 
 
 # ---------- Stage 2: build the Go binary ----------
-FROM golang:${GO_VERSION}-alpine AS build
+# Also pinned to BUILDPLATFORM. The binary is CGO-free, so the toolchain
+# cross-compiles for the target natively; running the compiler itself under
+# emulation would be far slower for no benefit.
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS build
 RUN apk add --no-cache git ca-certificates mailcap
+
+# Supplied automatically by BuildKit.
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
 
 WORKDIR /src
 
@@ -28,7 +40,8 @@ COPY . .
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 go build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v} \
+    go build \
         -tags netgo \
         -ldflags "-s -w -X github.com/sooua/send.to/cmd.Version=$(git describe --tags --always --dirty 2>/dev/null || echo docker) -extldflags '-static'" \
         -trimpath \
@@ -38,7 +51,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     printf 'package main\nimport ("net/http";"os";"time")\nfunc main(){c:=&http.Client{Timeout:3*time.Second};r,e:=c.Get("http://127.0.0.1:18080/health.html");if e!=nil||r.StatusCode!=200{os.Exit(1)}}\n' > /tmp/healthcheck.go && \
-    CGO_ENABLED=0 go build -ldflags "-s -w" -o /out/healthcheck /tmp/healthcheck.go
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v} \
+    go build -ldflags "-s -w" -o /out/healthcheck /tmp/healthcheck.go
 
 # Non-root user (UID/GID 10001); overridable at build time.
 ARG PUID=10001

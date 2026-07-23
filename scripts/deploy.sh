@@ -7,7 +7,7 @@
 #   ./scripts/deploy.sh --stop       # stop a daemonised instance
 #   PORT=9000 ./scripts/deploy.sh    # override listening port
 #
-# Requirements: Go 1.25+, Node 20+, npm, curl.
+# Requirements: Go 1.25+, Node 22+, npm, curl.
 # Everything is installed into ./build/ and ./data/ — nothing is written
 # to system locations.
 

@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go)](https://golang.org/)
-[![Node](https://img.shields.io/badge/Node-20%2B-339933?logo=node.js)](https://nodejs.org/)
+[![Node](https://img.shields.io/badge/Node-22%2B-339933?logo=node.js)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker)](./Dockerfile)
 [![CI](https://img.shields.io/badge/CI-tested-brightgreen)](./.github/workflows/test.yml)
 
@@ -97,7 +97,7 @@ The image is ≈ 52 MB, non-root, read-only root filesystem, no shell, with a bu
 
 ### Native (no Docker)
 
-Requires **Go 1.25+** and **Node 20+**.
+Requires **Go 1.25+** and **Node 22+**.
 
 <details>
 <summary><b>Linux / macOS / WSL</b></summary>

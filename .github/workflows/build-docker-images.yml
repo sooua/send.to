@@ -16,13 +16,16 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       -
         name: Prepare
         id: prepare
         run: |
           DOCKER_IMAGE=iuumua/sendto
-          DOCKER_PLATFORMS=linux/amd64,linux/arm/v7,linux/arm64,linux/386
+          # linux/386 is deliberately absent: the web stage builds on
+          # node:22-alpine, which publishes no 386 image, so including it
+          # fails the whole matrix with "no match for platform in manifest".
+          DOCKER_PLATFORMS=linux/amd64,linux/arm/v7,linux/arm64
           VERSION=edge
 
           if [[ $GITHUB_REF == refs/tags/* ]]; then

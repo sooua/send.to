@@ -15,7 +15,7 @@ services:
       context: .
       args:
         GO_VERSION: "1.25"
-        NODE_VERSION: "20"
+        NODE_VERSION: "22"
     image: sendto:local
     container_name: sendto
     restart: unless-stopped
