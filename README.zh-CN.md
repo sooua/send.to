@@ -55,6 +55,7 @@ curl https://send.to/aB3cD4eF/build.tar.gz -o build.tar.gz
 |---|---|
 | **单一静态二进制** | `CGO_ENABLED=0` 编译，以 `scratch` 镜像 + 非 root UID 10001 运行 |
 | **可插拔存储** | 本地文件系统、S3（含 Minio / DO Spaces）、Google Drive、Storj |
+| **端到端加密** | 客户端 AES-256-GCM；密钥藏在 URL fragment 里，永不到达服务器 |
 | **服务端加密** | 通过 `X-Encrypt-Password` 请求头触发 OpenPGP AES-256 加密 |
 | **客户端友好** | 兼容 `curl`、`wget`、HTTPie、PowerShell，或任意 HTTP 客户端 |
 | **自动过期** | 单文件 `Max-Days` / `Max-Downloads` 头部 + 定时清理 |
@@ -234,6 +235,32 @@ send rm https://send.to/aB3cD4eF/build.tar.gz      # 用本地存的删除链接
 永远删不掉文件 —— 这是 `curl` 别名永远做不到的一件事。
 
 `SENDTO_URL`、`SENDTO_USER`、`SENDTO_PASS` 优先于配置文件，CI 里不需要落盘任何状态。
+
+### 端到端加密
+
+`--e2e` 在你的机器上加密，之后才发送任何字节。密钥本地生成，放在链接的
+**fragment** 里 —— 也就是 `#` 之后那段，浏览器、代理和访问日志都不会传输它。
+服务器收到的是密文，且没有任何办法读取。
+
+```bash
+send put contract.pdf --e2e
+# https://send.to/aB3cD4eF/contract.pdf#k=9qbxPpQRFJ0xmdYqZ4qh73BppXc3UzK26wyvyXPQxFs
+#                                       └── 密钥。丢了文件就没了。
+
+send get 'https://send.to/aB3cD4eF/contract.pdf#k=9qbx…'   # 本地解密
+```
+
+Web 界面上是一个勾选框；收件人用浏览器打开链接时在浏览器内解密 —— 密钥不会离开
+那个标签页。
+
+AES-256-GCM，64 KiB 分块，分块计数器和末块标记都折进 nonce，因此重排或截断数据流
+会变成认证失败，而不是悄悄变短的文件。Go 与浏览器两套实现由
+[`test/e2e-interop/run.sh`](./test/e2e-interop/run.sh) 互相校验。
+
+这和 `--encrypt` / `X-Encrypt-Password` 不是一回事：后者是服务端加密，方便、纯
+`curl` 就能用，但服务器在过程中能看到明文。当你不信任服务器本身时，用 `--e2e`。
+
+**没有找回机制。** fragment 丢了，谁都解不开 —— 包括运维方和你自己。
 
 ---
 

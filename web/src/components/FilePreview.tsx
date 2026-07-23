@@ -15,8 +15,10 @@ import {
   Eye,
   AlertCircle,
   Loader2,
+  ShieldCheck,
 } from "lucide-react";
 import { translations, defaultLang, type Lang } from "../i18n/translations";
+import { decrypt, keyFromFragment, DecryptError } from "../lib/e2e";
 
 interface FileInfo {
   token: string;
@@ -100,6 +102,31 @@ export default function FilePreview() {
   const [showQr, setShowQr] = useState(false);
   const [revealed, setRevealed] = useState(false);
 
+  // End-to-end encrypted links carry their key in the fragment, which the
+  // browser keeps to itself. Everything below happens on this machine.
+  const [e2eKey, setE2eKey] = useState<Uint8Array | null>(null);
+  const [e2eState, setE2eState] = useState<"idle" | "working" | "ready" | "failed">("idle");
+  const [e2eProgress, setE2eProgress] = useState(0);
+  const [decrypted, setDecrypted] = useState<{ name: string; url: string } | null>(null);
+  const [e2eError, setE2eError] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      setE2eKey(keyFromFragment(window.location.hash));
+    } catch {
+      setE2eKey(null);
+      setE2eError(t("preview.e2eNoKeyHint"));
+    }
+  }, [t]);
+
+  // A decrypted file lives in an object URL; release it when we are done.
+  useEffect(() => {
+    const url = decrypted?.url;
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [decrypted]);
+
   useEffect(() => {
     const parsed = parseLocation(window.location.pathname);
     if (!parsed) {
@@ -129,6 +156,34 @@ export default function FilePreview() {
       })
       .catch(() => setError(t("preview.unavailable")));
   }, [t]);
+
+  const runDecrypt = useCallback(async () => {
+    if (!info || !e2eKey) return;
+
+    setE2eState("working");
+    setE2eError(null);
+
+    try {
+      const res = await fetch(info.url);
+      if (!res.ok) throw new Error(String(res.status));
+
+      const ciphertext = new Uint8Array(await res.arrayBuffer());
+      const { meta, blob } = await decrypt(ciphertext, e2eKey, (done, total) =>
+        setE2eProgress(total > 0 ? Math.round((done / total) * 100) : 0)
+      );
+
+      setDecrypted({
+        name: meta.name || info.filename,
+        url: URL.createObjectURL(blob),
+      });
+      setE2eState("ready");
+    } catch (err) {
+      setE2eState("failed");
+      setE2eError(
+        err instanceof DecryptError ? t("preview.e2eFailedHint") : t("preview.unavailableHint")
+      );
+    }
+  }, [info, e2eKey, t]);
 
   const copy = useCallback(async (text: string, key: string) => {
     if (await copyText(text)) {
@@ -164,7 +219,20 @@ export default function FilePreview() {
     );
   }
 
-  const isImage = info.contentType.startsWith("image/");
+  // The stored bytes are ciphertext, so nothing can be previewed or linked
+  // to directly until it has been decrypted here in the browser.
+  const isE2E = e2eKey !== null || window.location.hash.length > 1;
+
+  // The full link, key fragment included — that is what the recipient needs.
+  const shareURL = info.url + window.location.hash;
+
+  // curl would only ever fetch ciphertext, so point at the client that can
+  // actually decrypt it.
+  const downloadCommand = isE2E
+    ? `send get ${shareURL}`
+    : `curl ${info.url} -o ${shellQuote(info.filename)}`;
+
+  const isImage = !isE2E && info.contentType.startsWith("image/");
   const isVideo = info.contentType.startsWith("video/");
   const isAudio = info.contentType.startsWith("audio/");
   const isMedia = isImage || isVideo || isAudio;
@@ -254,14 +322,61 @@ export default function FilePreview() {
         </div>
       )}
 
-      <a
-        href={`/${info.token}/${encodeURIComponent(info.filename)}`}
-        className="btn btn-primary mb-6 w-full justify-center"
-        download={info.filename}
-      >
-        <Download className="h-4 w-4" strokeWidth={1.75} />
-        <span>{t("preview.download")}</span>
-      </a>
+      {isE2E ? (
+        <div className="mb-6 rounded-xl border border-[#5a8a4a33] bg-[#5a8a4a0a] p-5">
+          <div className="mb-3 flex items-center gap-2 text-[13px] font-medium text-[#5a8a4a]">
+            <ShieldCheck className="h-4 w-4" strokeWidth={1.5} />
+            {t("preview.e2eTitle")}
+          </div>
+
+          {!e2eKey ? (
+            <>
+              <p className="mb-1 text-[15px] text-primary">{t("preview.e2eNoKey")}</p>
+              <p className="text-[13px] text-muted">{e2eError ?? t("preview.e2eNoKeyHint")}</p>
+            </>
+          ) : e2eState === "ready" && decrypted ? (
+            <>
+              <a
+                href={decrypted.url}
+                download={decrypted.name}
+                className="btn btn-primary w-full justify-center"
+              >
+                <Download className="h-4 w-4" strokeWidth={1.75} />
+                <span>{decrypted.name}</span>
+              </a>
+              <p className="mt-3 text-[12px] text-muted-dark">{t("preview.e2eReady")}</p>
+            </>
+          ) : e2eState === "working" ? (
+            <div className="flex items-center gap-3 text-[14px] text-muted">
+              <Loader2 className="h-4 w-4 animate-spin text-[#5a8a4a]" strokeWidth={1.5} />
+              <span>
+                {t("preview.e2eDecrypting")} {e2eProgress > 0 ? `${e2eProgress}%` : ""}
+              </span>
+            </div>
+          ) : (
+            <>
+              <button onClick={runDecrypt} className="btn btn-primary w-full justify-center">
+                <ShieldCheck className="h-4 w-4" strokeWidth={1.75} />
+                <span>{t("preview.e2eDownload")}</span>
+              </button>
+              {e2eState === "failed" && (
+                <p className="mt-3 text-[13px] text-[#b53333]">
+                  {t("preview.e2eFailed")} — {e2eError}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        <a
+          href={`/${info.token}/${encodeURIComponent(info.filename)}`}
+          className="btn btn-primary mb-6 w-full justify-center"
+          download={info.filename}
+        >
+          <Download className="h-4 w-4" strokeWidth={1.75} />
+          <span>{t("preview.download")}</span>
+        </a>
+      )}
 
       <div className="space-y-4">
         <div>
@@ -271,12 +386,12 @@ export default function FilePreview() {
           <div className="flex gap-2">
             <code
               className="flex-1 truncate rounded-xl border border-border bg-background px-4 py-3 font-mono text-[13px] text-primary"
-              title={info.url}
+              title={shareURL}
             >
-              {info.url}
+              {shareURL}
             </code>
             <button
-              onClick={() => copy(info.url, "url")}
+              onClick={() => copy(shareURL, "url")}
               className="flex w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-light text-muted transition-colors hover:text-primary"
               aria-label={t("upload.copyLink")}
             >
@@ -295,10 +410,10 @@ export default function FilePreview() {
           </label>
           <div className="flex gap-2">
             <code className="flex-1 overflow-x-auto whitespace-nowrap rounded-xl border border-border bg-background px-4 py-3 font-mono text-[13px] text-primary">
-              curl {info.url} -o {shellQuote(info.filename)}
+              {downloadCommand}
             </code>
             <button
-              onClick={() => copy(`curl ${info.url} -o ${shellQuote(info.filename)}`, "curl")}
+              onClick={() => copy(downloadCommand, "curl")}
               className="flex w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-light text-muted transition-colors hover:text-primary"
               aria-label={t("upload.copyCurl")}
             >
@@ -311,7 +426,7 @@ export default function FilePreview() {
           </div>
         </div>
 
-        {info.encrypted && (
+        {info.encrypted && !isE2E && (
           <p className="flex items-start gap-2 rounded-xl border border-border bg-background px-4 py-3 text-[13px] text-muted">
             <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
             <span>{t("preview.maybeEncrypted")}</span>

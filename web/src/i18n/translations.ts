@@ -85,6 +85,21 @@ export const translations: Record<Lang, Record<string, string>> = {
     "preview.unavailableHint": "It may have expired, hit its download limit, or been deleted.",
     "preview.maybeEncrypted":
       'This file may be encrypted. If so, download it with: curl -H "X-Decrypt-Password: <password>" <url>',
+    "upload.e2e": "End-to-end encrypt",
+    "upload.e2eHint":
+      "Encrypted in this browser. The key goes in the link after #, which is never sent to the server — so the server stores a file it cannot read.",
+    "upload.e2eBadge": "End-to-end encrypted",
+    "upload.e2eKeyWarning":
+      "Keep the whole link. Without the part after # the file is unrecoverable — nobody can reset it.",
+    "upload.e2eEncrypting": "Encrypting…",
+    "preview.e2eTitle": "End-to-end encrypted",
+    "preview.e2eDecrypting": "Decrypting in your browser…",
+    "preview.e2eReady": "Decrypted in your browser — the server never saw the contents.",
+    "preview.e2eNoKey": "This link is missing its key",
+    "preview.e2eNoKeyHint": "The part after # was lost. Ask the sender for the complete link.",
+    "preview.e2eFailed": "Could not decrypt",
+    "preview.e2eFailedHint": "Wrong key, or the file was modified or truncated.",
+    "preview.e2eDownload": "Decrypt and download",
     // Hero CTA
     "hero.cta.primary": "Upload a file",
     "hero.cta.code": "$ curl --upload-file file.txt",
@@ -370,6 +385,20 @@ export const translations: Record<Lang, Record<string, string>> = {
     "preview.unavailableHint": "可能已过期、下载次数用尽，或已被删除。",
     "preview.maybeEncrypted":
       '该文件可能已加密。若是，请用：curl -H "X-Decrypt-Password: <密码>" <链接> 下载。',
+    "upload.e2e": "端到端加密",
+    "upload.e2eHint":
+      "在你的浏览器里加密。密钥放在链接 # 之后，永远不会发给服务器 —— 服务器存的是它自己解不开的文件。",
+    "upload.e2eBadge": "端到端加密",
+    "upload.e2eKeyWarning": "请保留完整链接。缺了 # 之后那段，文件将无法恢复，任何人都无法重置。",
+    "upload.e2eEncrypting": "加密中…",
+    "preview.e2eTitle": "端到端加密",
+    "preview.e2eDecrypting": "正在你的浏览器中解密…",
+    "preview.e2eReady": "已在你的浏览器中解密 —— 服务器从未接触过内容。",
+    "preview.e2eNoKey": "链接缺少密钥",
+    "preview.e2eNoKeyHint": "# 之后那段丢失了。请向发送方索取完整链接。",
+    "preview.e2eFailed": "无法解密",
+    "preview.e2eFailedHint": "密钥错误，或文件已被修改 / 截断。",
+    "preview.e2eDownload": "解密并下载",
     // Hero CTA
     "hero.cta.primary": "上传文件",
     "hero.cta.code": "$ curl --upload-file 文件.txt",
@@ -647,6 +676,21 @@ export const translations: Record<Lang, Record<string, string>> = {
     "preview.unavailableHint": "期限切れ、回数上限、または削除された可能性があります。",
     "preview.maybeEncrypted":
       'このファイルは暗号化されている可能性があります。その場合は curl -H "X-Decrypt-Password: <パスワード>" <URL> でダウンロードしてください。',
+    "upload.e2e": "エンドツーエンド暗号化",
+    "upload.e2eHint":
+      "このブラウザ内で暗号化します。鍵はリンクの # 以降に入り、サーバーには送信されません — サーバーは自分では読めないファイルを保存します。",
+    "upload.e2eBadge": "エンドツーエンド暗号化",
+    "upload.e2eKeyWarning":
+      "リンク全体を保管してください。# 以降がないとファイルは復元できず、誰にもリセットできません。",
+    "upload.e2eEncrypting": "暗号化中…",
+    "preview.e2eTitle": "エンドツーエンド暗号化",
+    "preview.e2eDecrypting": "ブラウザで復号しています…",
+    "preview.e2eReady": "ブラウザで復号しました — サーバーは内容を一度も見ていません。",
+    "preview.e2eNoKey": "リンクに鍵がありません",
+    "preview.e2eNoKeyHint": "# 以降が失われています。送信者に完全なリンクを依頼してください。",
+    "preview.e2eFailed": "復号できませんでした",
+    "preview.e2eFailedHint": "鍵が違うか、ファイルが改変または切り詰められています。",
+    "preview.e2eDownload": "復号してダウンロード",
     // Hero CTA
     "hero.cta.primary": "ファイルをアップロード",
     "hero.cta.code": "$ curl --upload-file file.txt",

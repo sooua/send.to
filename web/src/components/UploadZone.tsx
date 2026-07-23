@@ -22,8 +22,10 @@ import {
   Lock,
   Eye,
   EyeOff,
+  ShieldCheck,
 } from "lucide-react";
 import { translations, defaultLang, type Lang } from "../i18n/translations";
+import { encrypt as e2eEncrypt, generateKey, encodeKey, encryptedSize } from "../lib/e2e";
 
 const API_BASE = (import.meta as any).env?.PUBLIC_API_URL || "";
 const MAX_UPLOAD_BYTES = Number((import.meta as any).env?.PUBLIC_MAX_UPLOAD_BYTES) || 0;
@@ -63,9 +65,15 @@ interface UploadOptions {
   expiryDays: string;
   maxDownloads: string;
   password: string;
+  e2e: boolean;
 }
 
-const defaultOptions: UploadOptions = { expiryDays: "", maxDownloads: "", password: "" };
+const defaultOptions: UploadOptions = {
+  expiryDays: "",
+  maxDownloads: "",
+  password: "",
+  e2e: false,
+};
 
 function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
@@ -161,6 +169,7 @@ function loadOptions(): UploadOptions {
       ...defaultOptions,
       expiryDays: typeof parsed.expiryDays === "string" ? parsed.expiryDays : "",
       maxDownloads: typeof parsed.maxDownloads === "string" ? parsed.maxDownloads : "",
+      e2e: parsed.e2e === true,
     };
   } catch {
     return defaultOptions;
@@ -201,7 +210,11 @@ function uploadFile(
   file: globalThis.File,
   options: UploadOptions,
   onProgress: (progress: number, speed: number, eta: number) => void,
-  registerXhr: (xhr: XMLHttpRequest | null) => void
+  registerXhr: (xhr: XMLHttpRequest | null) => void,
+  // Set when the payload was encrypted here; appended to the returned URL as a
+  // fragment, which the browser never puts on the wire.
+  body?: Blob,
+  fragmentKey?: string
 ): Promise<UploadResult> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -230,21 +243,21 @@ function uploadFile(
       try {
         const parsed = JSON.parse(xhr.responseText);
         resolve({
-          url: parsed.url,
+          url: parsed.url + (fragmentKey ? "#k=" + fragmentKey : ""),
           deleteUrl: parsed.delete_url || "",
           filename: parsed.filename || file.name,
-          size: typeof parsed.size === "number" ? parsed.size : file.size,
-          encrypted: Boolean(parsed.encrypted),
+          size: fragmentKey ? file.size : typeof parsed.size === "number" ? parsed.size : file.size,
+          encrypted: Boolean(parsed.encrypted) || Boolean(fragmentKey),
           expiresAt: parsed.expires_at,
           maxDownloads: parsed.max_downloads,
         });
       } catch {
         resolve({
-          url: (xhr.responseText || "").trim(),
+          url: (xhr.responseText || "").trim() + (fragmentKey ? "#k=" + fragmentKey : ""),
           deleteUrl: xhr.getResponseHeader("X-Url-Delete") || "",
           filename: file.name,
           size: file.size,
-          encrypted: Boolean(options.password),
+          encrypted: Boolean(options.password) || Boolean(fragmentKey),
         });
       }
     };
@@ -265,7 +278,7 @@ function uploadFile(
     if (options.maxDownloads) xhr.setRequestHeader("Max-Downloads", options.maxDownloads);
     if (options.password) xhr.setRequestHeader("X-Encrypt-Password", options.password);
 
-    xhr.send(file);
+    xhr.send(body ?? file);
   });
 }
 
@@ -323,6 +336,7 @@ function UploadZoneInner() {
   const [showQr, setShowQr] = useState<string | null>(null);
   const [options, setOptions] = useState<UploadOptions>(defaultOptions);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [encrypting, setEncrypting] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const xhrRef = useRef<XMLHttpRequest | null>(null);
@@ -352,12 +366,16 @@ function UploadZoneInner() {
     try {
       localStorage.setItem(
         OPTIONS_KEY,
-        JSON.stringify({ expiryDays: options.expiryDays, maxDownloads: options.maxDownloads })
+        JSON.stringify({
+          expiryDays: options.expiryDays,
+          maxDownloads: options.maxDownloads,
+          e2e: options.e2e,
+        })
       );
     } catch {
       // ignore
     }
-  }, [options.expiryDays, options.maxDownloads]);
+  }, [options.expiryDays, options.maxDownloads, options.e2e]);
 
   const pushHistory = useCallback((result: UploadResult) => {
     setHistory((prev) => {
@@ -396,13 +414,33 @@ function UploadZoneInner() {
         });
 
         try {
+          const opts = optionsRef.current;
+
+          // Encryption happens before the request, so the bytes that leave
+          // this browser are already ciphertext.
+          let body: Blob | undefined;
+          let fragmentKey: string | undefined;
+
+          if (opts.e2e) {
+            setEncrypting(item.id);
+            const key = generateKey();
+            body = await e2eEncrypt(item.file, key, {
+              name: item.file.name,
+              type: item.file.type || "application/octet-stream",
+            });
+            fragmentKey = encodeKey(key);
+            setEncrypting(null);
+          }
+
           const result = await uploadFile(
             item.file,
-            optionsRef.current,
+            opts,
             (progress, speed, eta) => updateItem(item.id, { progress, speed, eta }),
             (xhr) => {
               xhrRef.current = xhr;
-            }
+            },
+            body,
+            fragmentKey
           );
 
           queueRef.current = queueRef.current.map((q) =>
@@ -412,6 +450,7 @@ function UploadZoneInner() {
           setResults((prev) => [...prev, result]);
           pushHistory(result);
         } catch (err) {
+          setEncrypting(null);
           const msg = err instanceof Error ? err.message : "Upload failed";
 
           if (msg === "aborted") {
@@ -442,7 +481,13 @@ function UploadZoneInner() {
       let rejected: string | null = null;
 
       for (const file of files) {
-        if (MAX_UPLOAD_BYTES > 0 && file.size > MAX_UPLOAD_BYTES) {
+        // Encryption adds a header and one tag per 64 KiB chunk, so check the
+        // size that will actually be sent.
+        const sentSize = optionsRef.current.e2e
+          ? encryptedSize(file.size, { name: file.name, type: file.type })
+          : file.size;
+
+        if (MAX_UPLOAD_BYTES > 0 && sentSize > MAX_UPLOAD_BYTES) {
           rejected = `${t("upload.tooLarge")}: ${file.name} (${formatBytes(file.size)} > ${formatBytes(MAX_UPLOAD_BYTES)})`;
           continue;
         }
@@ -597,6 +642,7 @@ function UploadZoneInner() {
     if (options.expiryDays) parts.push(`${options.expiryDays}d`);
     if (options.maxDownloads) parts.push(`≤${options.maxDownloads}`);
     if (options.password) parts.push("🔒");
+    if (options.e2e) parts.push("E2E");
     return parts.join(" · ");
   }, [options]);
 
@@ -710,6 +756,27 @@ function UploadZoneInner() {
               </div>
 
               <div className="sm:col-span-2">
+                <div className="flex items-start gap-3">
+                  <input
+                    id="opt-e2e"
+                    type="checkbox"
+                    checked={options.e2e}
+                    onChange={(e) => setOptions((o) => ({ ...o, e2e: e.target.checked }))}
+                    className="mt-1 h-4 w-4 shrink-0 accent-[#c96442]"
+                  />
+                  <label htmlFor="opt-e2e" className="cursor-pointer">
+                    <span className="flex items-center gap-2 text-[13px] font-medium text-primary">
+                      <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      {t("upload.e2e")}
+                    </span>
+                    <span className="mt-1 block text-[12px] text-muted-dark">
+                      {t("upload.e2eHint")}
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="sm:col-span-2">
                 <label
                   htmlFor="opt-password"
                   className="mb-2 flex items-center gap-2 text-[13px] font-medium text-primary"
@@ -781,11 +848,13 @@ function UploadZoneInner() {
                     {truncateMiddle(item.file.name, 48)}
                   </span>
                   <span className="ml-auto shrink-0 text-xs text-muted-dark">
-                    {item.status === "uploading"
-                      ? `${item.progress}%`
-                      : item.status === "error"
-                        ? t("upload.failed")
-                        : t("upload.queued")}
+                    {encrypting === item.id
+                      ? t("upload.e2eEncrypting")
+                      : item.status === "uploading"
+                        ? `${item.progress}%`
+                        : item.status === "error"
+                          ? t("upload.failed")
+                          : t("upload.queued")}
                   </span>
                 </div>
 
@@ -871,11 +940,18 @@ function UploadZoneInner() {
                   <span className="truncate text-[15px] text-primary" title={result.filename}>
                     {truncateMiddle(result.filename, 48)}
                   </span>
-                  {result.encrypted && (
-                    <span className="flex items-center gap-1 rounded-full bg-[#c9644214] px-2 py-0.5 text-[11px] text-[#c96442]">
-                      <Lock className="h-3 w-3" strokeWidth={1.5} />
-                      {t("upload.encryptedBadge")}
+                  {result.url.includes("#k=") ? (
+                    <span className="flex items-center gap-1 rounded-full bg-[#5a8a4a1a] px-2 py-0.5 text-[11px] text-[#5a8a4a]">
+                      <ShieldCheck className="h-3 w-3" strokeWidth={1.5} />
+                      {t("upload.e2eBadge")}
                     </span>
+                  ) : (
+                    result.encrypted && (
+                      <span className="flex items-center gap-1 rounded-full bg-[#c9644214] px-2 py-0.5 text-[11px] text-[#c96442]">
+                        <Lock className="h-3 w-3" strokeWidth={1.5} />
+                        {t("upload.encryptedBadge")}
+                      </span>
+                    )
                   )}
                   <span className="ml-auto shrink-0 text-xs text-muted-dark">
                     {formatBytes(result.size)}
@@ -905,6 +981,16 @@ function UploadZoneInner() {
                   onCopy={copyToClipboard}
                   ariaLabel={t("upload.copyLink")}
                 />
+
+                {result.url.includes("#k=") && (
+                  <p className="flex items-start gap-2 rounded-xl border border-[#5a8a4a33] bg-[#5a8a4a0a] px-4 py-3 text-[13px] text-muted">
+                    <ShieldCheck
+                      className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#5a8a4a]"
+                      strokeWidth={1.5}
+                    />
+                    <span>{t("upload.e2eKeyWarning")}</span>
+                  </p>
+                )}
 
                 <CopyRow
                   label={result.encrypted ? t("upload.decryptCmd") : t("upload.downloadCmd")}

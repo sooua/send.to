@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/url"
 	"os"
 	"os/signal"
@@ -129,10 +130,14 @@ func putCommand(serverFlags []cli.Flag) *cli.Command {
 				Aliases: []string{"n"},
 				Usage:   "delete after N completed downloads",
 			},
+			&cli.BoolFlag{
+				Name:  "e2e",
+				Usage: "encrypt on this machine; the key rides in the link fragment and never reaches the server",
+			},
 			&cli.StringFlag{
 				Name:    "encrypt",
 				Aliases: []string{"e"},
-				Usage:   "encrypt at rest with this password",
+				Usage:   "server-side encryption with this password (the server sees the plaintext)",
 			},
 			&cli.StringFlag{
 				Name:  "name",
@@ -182,7 +187,7 @@ func runPut(c *cli.Context) error {
 	quiet := c.Bool("quiet")
 
 	for _, arg := range c.Args().Slice() {
-		result, err := uploadOne(c.Context, api, arg, c.String("name"), opts, quiet)
+		result, err := uploadOne(c.Context, api, arg, c.String("name"), opts, quiet, c.Bool("e2e"))
 		if err != nil {
 			return err
 		}
@@ -210,7 +215,7 @@ func runPut(c *cli.Context) error {
 	return nil
 }
 
-func uploadOne(ctx context.Context, api *client.Client, arg, nameOverride string, opts client.UploadOptions, quiet bool) (*client.Result, error) {
+func uploadOne(ctx context.Context, api *client.Client, arg, nameOverride string, opts client.UploadOptions, quiet, e2e bool) (*client.Result, error) {
 	name := nameOverride
 
 	if arg == "-" {
@@ -218,7 +223,7 @@ func uploadOne(ctx context.Context, api *client.Client, arg, nameOverride string
 			return nil, errors.New("uploading from stdin needs --name")
 		}
 		// Length is unknown, so the server buffers it to disk to learn one.
-		return api.Upload(ctx, name, os.Stdin, -1, opts)
+		return uploadStream(ctx, api, name, os.Stdin, -1, opts, e2e)
 	}
 
 	f, err := os.Open(arg) //nolint:gosec // the path is the user's own argument
@@ -240,7 +245,59 @@ func uploadOne(ctx context.Context, api *client.Client, arg, nameOverride string
 		body = bar.wrap(f)
 	}
 
-	return api.Upload(ctx, name, body, size, opts)
+	return uploadStream(ctx, api, name, body, size, opts, e2e)
+}
+
+// uploadStream sends the body, encrypting it here first when --e2e is set. The
+// returned URL then carries the key in its fragment; the server only ever sees
+// ciphertext and has no way to read it.
+func uploadStream(ctx context.Context, api *client.Client, name string, body io.Reader, size int64, opts client.UploadOptions, e2e bool) (*client.Result, error) {
+	if !e2e {
+		return api.Upload(ctx, name, body, size, opts)
+	}
+
+	if opts.Password != "" {
+		return nil, errors.New("--e2e and --encrypt are alternatives: --e2e keeps the key on this machine, --encrypt hands it to the server")
+	}
+
+	key, err := client.NewE2EKey()
+	if err != nil {
+		return nil, err
+	}
+
+	meta := client.E2EMetadata{Name: name, Type: contentTypeFor(name)}
+
+	encrypted, err := client.E2EEncrypt(body, key, meta)
+	if err != nil {
+		return nil, err
+	}
+
+	// The ciphertext length is exactly derivable, so the upload still declares
+	// a Content-Length and the server need not spool it to disk to find one.
+	encryptedSize := int64(-1)
+	if size >= 0 {
+		if encryptedSize, err = client.E2EEncryptedSize(size, meta); err != nil {
+			return nil, err
+		}
+	}
+
+	result, err := api.Upload(ctx, name, encrypted, encryptedSize, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	result.URL += "#k=" + key.String()
+	result.Encrypted = true
+	result.Size = size
+
+	return result, nil
+}
+
+func contentTypeFor(name string) string {
+	if ct := mime.TypeByExtension(filepath.Ext(name)); ct != "" {
+		return ct
+	}
+	return "application/octet-stream"
 }
 
 func printUploadSummary(r *client.Result) {
@@ -260,7 +317,10 @@ func printUploadSummary(r *client.Result) {
 		fmt.Fprintf(os.Stderr, "  %s\n", strings.Join(parts, " · "))
 	}
 	if r.DeleteURL != "" {
-		fmt.Fprintf(os.Stderr, "  delete: send rm %s\n", r.URL)
+		fmt.Fprintf(os.Stderr, "  delete: send rm %s\n", client.StripFragment(r.URL))
+	}
+	if strings.Contains(r.URL, "#k=") {
+		fmt.Fprintln(os.Stderr, "  everything after # is the key — without it nobody, the server included, can read this file")
 	}
 }
 
@@ -304,11 +364,20 @@ func runGet(c *cli.Context) error {
 
 	fileURL := c.Args().First()
 
-	api, _, err := resolveClient(c)
+	// The key lives in the fragment. Take it, then strip it: a fragment is
+	// never meant to reach a server, and building the request from the bare
+	// URL makes that structural rather than a matter of trust.
+	key, err := client.FragmentKey(fileURL)
 	if err != nil {
+		return err
+	}
+	fileURL = client.StripFragment(fileURL)
+
+	api, _, resolveErr := resolveClient(c)
+	if resolveErr != nil {
 		// A full URL carries its own host, so a missing profile is fine.
 		if !strings.HasPrefix(fileURL, "http://") && !strings.HasPrefix(fileURL, "https://") {
-			return err
+			return resolveErr
 		}
 		api = client.New("")
 	}
@@ -317,8 +386,11 @@ func runGet(c *cli.Context) error {
 
 	// Straight to stdout: no resume, no progress, no temp file.
 	if c.String("output") == "-" {
-		_, _, err := api.Download(c.Context, fileURL, os.Stdout, opts)
-		return err
+		if key == nil {
+			_, _, err := api.Download(c.Context, fileURL, os.Stdout, opts)
+			return err
+		}
+		return downloadDecryptedToStdout(c, api, fileURL, key, opts)
 	}
 
 	dest := c.String("output")
@@ -386,7 +458,15 @@ func runGet(c *cli.Context) error {
 		return err
 	}
 
-	if err := os.Rename(partial, dest); err != nil {
+	// Encrypted downloads resume as ciphertext and are decrypted once whole,
+	// so an interrupted transfer still picks up where it left off.
+	if key != nil {
+		name, err := decryptFile(partial, dest, c.String("output"), key)
+		if err != nil {
+			return err
+		}
+		dest = name
+	} else if err := os.Rename(partial, dest); err != nil {
 		return err
 	}
 
@@ -395,6 +475,65 @@ func runGet(c *cli.Context) error {
 	}
 
 	return nil
+}
+
+// decryptFile turns the downloaded ciphertext into the plaintext file, using
+// the name recorded inside the encrypted metadata unless one was given.
+func decryptFile(partial, dest, explicitOutput string, key client.E2EKey) (string, error) {
+	in, err := os.Open(partial) //nolint:gosec // path built from the user's own argument
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = in.Close() }()
+
+	meta, plaintext, err := client.E2EDecrypt(in, key)
+	if err != nil {
+		return "", err
+	}
+
+	// The real filename is inside the ciphertext, so it need not match the URL.
+	if explicitOutput == "" && meta.Name != "" {
+		dest = filepath.Base(meta.Name)
+	}
+
+	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600) //nolint:gosec // as above
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := io.Copy(out, plaintext); err != nil {
+		_ = out.Close()
+		_ = os.Remove(dest)
+		return "", err
+	}
+
+	if err := out.Close(); err != nil {
+		return "", err
+	}
+
+	_ = in.Close()
+	_ = os.Remove(partial)
+
+	return dest, nil
+}
+
+// downloadDecryptedToStdout streams the ciphertext through the decrypter
+// without ever putting the whole file on disk or in memory.
+func downloadDecryptedToStdout(c *cli.Context, api *client.Client, fileURL string, key client.E2EKey, opts client.DownloadOptions) error {
+	pr, pw := io.Pipe()
+
+	go func() {
+		_, _, err := api.Download(c.Context, fileURL, pw, opts)
+		_ = pw.CloseWithError(err)
+	}()
+
+	_, plaintext, err := client.E2EDecrypt(pr, key)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(os.Stdout, plaintext)
+	return err
 }
 
 // ---------------------------------------------------------------- ls
@@ -538,7 +677,11 @@ func runRemove(c *cli.Context) error {
 
 	for _, target := range targets {
 		entry := history.Find(target)
-		deleteURL := target
+		if entry == nil {
+			// History records the full link including its key fragment.
+			entry = history.Find(client.StripFragment(target))
+		}
+		deleteURL := client.StripFragment(target)
 
 		switch {
 		case entry != nil && entry.DeleteURL != "":
@@ -595,7 +738,7 @@ func runInfo(c *cli.Context) error {
 		api = client.New("")
 	}
 
-	info, err := api.Stat(c.Context, c.Args().First())
+	info, err := api.Stat(c.Context, client.StripFragment(c.Args().First()))
 	if err != nil {
 		if client.NotFound(err) {
 			return errors.New("not available — expired, out of downloads, or deleted")

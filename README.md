@@ -55,6 +55,7 @@ One static Go binary. One 52 MB Docker image. No database. No account. Your file
 |---|---|
 | **Single static binary** | `CGO_ENABLED=0`, runs on `scratch` as non-root UID 10001 |
 | **Pluggable storage** | local filesystem, S3 (Minio / DO Spaces), Google Drive, Storj |
+| **End-to-end encryption** | AES-256-GCM on the client; the key rides in the URL fragment and never reaches the server |
 | **Server-side encryption** | OpenPGP AES-256 via `X-Encrypt-Password` header |
 | **Client-friendly** | Works with `curl`, `wget`, HTTPie, PowerShell, any HTTP client |
 | **Auto-expiry** | Per-file `Max-Days` / `Max-Downloads` headers + scheduled purge |
@@ -235,6 +236,38 @@ a link no longer means losing the ability to delete the file — the one thing a
 
 `SENDTO_URL`, `SENDTO_USER` and `SENDTO_PASS` override the config file, so CI
 needs no state on disk.
+
+### End-to-end encryption
+
+`--e2e` encrypts on your machine before anything is sent. The key is generated
+locally and travels in the link's **fragment** — the part after `#`, which
+browsers, proxies and access logs never transmit. The server receives
+ciphertext and has no way to read it.
+
+```bash
+send put contract.pdf --e2e
+# https://send.to/aB3cD4eF/contract.pdf#k=9qbxPpQRFJ0xmdYqZ4qh73BppXc3UzK26wyvyXPQxFs
+#                                       └── the key. Lose it and the file is gone.
+
+send get 'https://send.to/aB3cD4eF/contract.pdf#k=9qbx…'   # decrypts locally
+```
+
+The web UI offers the same thing as a checkbox, and a recipient opening the
+link in a browser decrypts it there — the key never leaves the tab.
+
+AES-256-GCM in 64 KiB chunks, with the chunk counter and a final-chunk marker
+folded into each nonce, so reordering or truncating the stream is an
+authentication failure rather than a silently shorter file. The Go and browser
+implementations are checked against each other by
+[`test/e2e-interop/run.sh`](./test/e2e-interop/run.sh).
+
+This is not the same as `--encrypt` / `X-Encrypt-Password`, which is
+server-side: convenient, works with plain `curl`, but the server sees the
+plaintext on the way through. Use `--e2e` when the server itself is not
+trusted.
+
+**There is no recovery.** Nobody — not the operator, not you — can decrypt a
+file whose fragment was lost.
 
 ---
 
