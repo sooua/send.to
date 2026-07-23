@@ -1,0 +1,18 @@
+---
+// Served by the Go server for any browser that opens a collection link
+// (GET /c/{token} with Accept: text/html). The page is static; the component
+// fills it in from the same path, asked for as JSON.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import CollectionView from "../components/CollectionView";
+---
+
+<BaseLayout
+  title="Shared files — send.to"
+  description="Several files shared with send.to. Download them one by one, or all at once."
+>
+  <section class="bg-background px-6 py-16 sm:py-24">
+    <div class="mx-auto max-w-2xl">
+      <CollectionView client:load />
+    </div>
+  </section>
+</BaseLayout>

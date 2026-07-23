@@ -100,6 +100,14 @@ export const translations: Record<Lang, Record<string, string>> = {
     "preview.e2eFailed": "Could not decrypt",
     "preview.e2eFailedHint": "Wrong key, or the file was modified or truncated.",
     "preview.e2eDownload": "Decrypt and download",
+    // Collection landing page
+    "collection.title": "Shared files",
+    "collection.files": "files",
+    "collection.downloadAll": "Download all as a zip",
+    "collection.loading": "Loading the file list…",
+    "collection.unavailable": "This collection is no longer available",
+    "collection.unavailableHint":
+      "Every file in it may have expired, hit its download limit, or been deleted.",
     // Hero CTA
     "hero.cta.primary": "Upload a file",
     "hero.cta.code": "$ curl --upload-file file.txt",
@@ -399,6 +407,13 @@ export const translations: Record<Lang, Record<string, string>> = {
     "preview.e2eFailed": "无法解密",
     "preview.e2eFailedHint": "密钥错误，或文件已被修改 / 截断。",
     "preview.e2eDownload": "解密并下载",
+    // 集合落地页
+    "collection.title": "共享文件",
+    "collection.files": "个文件",
+    "collection.downloadAll": "打包下载全部",
+    "collection.loading": "正在读取文件列表…",
+    "collection.unavailable": "该集合已不可用",
+    "collection.unavailableHint": "其中的文件可能都已过期、下载次数用尽，或已被删除。",
     // Hero CTA
     "hero.cta.primary": "上传文件",
     "hero.cta.code": "$ curl --upload-file 文件.txt",
@@ -691,6 +706,14 @@ export const translations: Record<Lang, Record<string, string>> = {
     "preview.e2eFailed": "復号できませんでした",
     "preview.e2eFailedHint": "鍵が違うか、ファイルが改変または切り詰められています。",
     "preview.e2eDownload": "復号してダウンロード",
+    // コレクションのランディングページ
+    "collection.title": "共有ファイル",
+    "collection.files": "個のファイル",
+    "collection.downloadAll": "まとめて zip でダウンロード",
+    "collection.loading": "ファイル一覧を読み込み中…",
+    "collection.unavailable": "このコレクションは利用できません",
+    "collection.unavailableHint":
+      "含まれるファイルがすべて期限切れ、ダウンロード上限、または削除された可能性があります。",
     // Hero CTA
     "hero.cta.primary": "ファイルをアップロード",
     "hero.cta.code": "$ curl --upload-file file.txt",

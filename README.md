@@ -58,6 +58,9 @@ One static Go binary. One 52 MB Docker image. No database. No account. Your file
 | **End-to-end encryption** | AES-256-GCM on the client; the key rides in the URL fragment and never reaches the server |
 | **Server-side encryption** | OpenPGP AES-256 via `X-Encrypt-Password` header |
 | **Client-friendly** | Works with `curl`, `wget`, HTTPie, PowerShell, any HTTP client |
+| **Resumable uploads** | Chunked sessions: a 5 GB transfer that dies at 90% continues where it stopped |
+| **Collections** | One link for several files, with a landing page and a download-all archive |
+| **Accountless history** | An owner token lists and deletes your uploads from any machine |
 | **Auto-expiry** | Per-file `Max-Days` / `Max-Downloads` headers + scheduled purge |
 | **Virus scanning** | Optional ClamAV prescan and VirusTotal submission |
 | **TLS** | Bring-your-own cert, or automatic via Let's Encrypt |
@@ -283,6 +286,9 @@ file whose fragment was lost.
 | `DELETE`| `/upload/{id}/{filename}`         | Abandon a resumable upload      |
 | `GET`  | `/{token}/{filename}`              | Download or preview             |
 | `HEAD` | `/{token}/{filename}`              | Metadata only                   |
+| `POST` | `/collection`                      | Group existing uploads behind one link |
+| `GET`  | `/c/{token}`                       | A collection: page, JSON, or one URL per line |
+| `GET`  | `/c/{token}.{zip,tar,tar.gz}`      | The whole collection as one archive |
 | `GET`  | `/({files}).{zip,tar,tar.gz}`      | Combine files into an archive   |
 | `DELETE` | `/{token}/{filename}/{delToken}` | Delete a file                   |
 | `PUT`  | `/{filename}/scan`                 | ClamAV scan (auth + rate limited) |
@@ -356,6 +362,47 @@ resuming at 1.4 GB of 5.0 GB
 ```
 
 Against a server without these endpoints the client falls back to a plain `PUT`.
+
+### Collections
+
+Uploading five log files gives you five links, and the fifth one is the one that
+gets lost in the chat. A collection is one link that lists them all:
+
+```bash
+send put ./*.log --collection --collection-name "nightly logs"
+# https://send.to/c/aB3cD4eF
+```
+
+Opening it in a browser shows the file list with a "download all" button;
+`curl` gets one share URL per line, and `Accept: application/json` gets the
+whole record. Everything at once is the same link with an extension:
+
+```bash
+curl -sL https://send.to/c/aB3cD4eF.zip -o logs.zip     # .tar and .tar.gz too
+curl -s https://send.to/c/aB3cD4eF | xargs -n1 curl -O  # or fetch them one by one
+```
+
+A collection can also be assembled from uploads that already exist, which is
+what the CLI does under the hood:
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+    -d '{"name":"nightly logs","files":["https://send.to/aB3/app.log","https://send.to/cD4/worker.log"]}' \
+    https://send.to/collection
+```
+
+It owns no bytes of its own:
+
+- Deleting the collection leaves the files alone — somebody may hold one of
+  their links directly. Each file keeps its own delete link and its own limits.
+- A member that expires, runs out of downloads or is deleted simply drops off
+  the list, and a collection with nothing left answers 404.
+- Downloading the archive charges each member one download, exactly as fetching
+  them individually would.
+- At most 100 files per collection.
+- `--collection` and `--e2e` do not combine: each file has its own key, and one
+  link cannot carry several of them without handing the server the means to
+  read the files.
 
 ### Server-side upload history
 

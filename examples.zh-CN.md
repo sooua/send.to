@@ -250,6 +250,33 @@ curl -s https://send.to/<token>/contract.pdf.age | age -d -o contract.pdf
 
 ---
 
+## 一条链接装多个文件
+
+```bash
+send put ./*.log --collection --collection-name "nightly logs"
+# https://send.to/c/aB3cD4eF
+```
+
+甩一条链接就够了，不用甩五条。收件人打开是一个文件列表页；用 curl 则是：
+
+```bash
+curl -s https://send.to/c/aB3cD4eF                   # 每行一个链接
+curl -sL https://send.to/c/aB3cD4eF.zip -o logs.zip  # 整包下载
+curl -s https://send.to/c/aB3cD4eF | xargs -n1 curl -O
+```
+
+也可以把已经传好的文件组装成集合，不会重传任何字节：
+
+```bash
+a=$(curl -sS --upload-file app.log    https://send.to/app.log)
+b=$(curl -sS --upload-file worker.log https://send.to/worker.log)
+
+curl -sS -X POST -H "Content-Type: application/json" \
+    -d "{\"files\":[\"$a\",\"$b\"]}" https://send.to/collection
+```
+
+删除集合不会删掉文件；某个文件过期后，它会自己从列表里消失。
+
 ## 比机器活得久的上传历史
 
 删除链接只出现一次。如果上传的那台机器是一个已经销毁的 CI runner，这个文件在

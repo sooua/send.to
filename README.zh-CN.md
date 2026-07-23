@@ -58,6 +58,9 @@ curl https://send.to/aB3cD4eF/build.tar.gz -o build.tar.gz
 | **端到端加密** | 客户端 AES-256-GCM；密钥藏在 URL fragment 里，永不到达服务器 |
 | **服务端加密** | 通过 `X-Encrypt-Password` 请求头触发 OpenPGP AES-256 加密 |
 | **客户端友好** | 兼容 `curl`、`wget`、HTTPie、PowerShell，或任意 HTTP 客户端 |
+| **断点续传上传** | 分片会话：5 GB 传到 90% 断掉，从断点接着传 |
+| **集合链接** | 一条链接装多个文件，带落地页和整包下载 |
+| **无账号历史** | 一个 owner token，在任何机器上列出并删除自己的上传 |
 | **自动过期** | 单文件 `Max-Days` / `Max-Downloads` 头部 + 定时清理 |
 | **病毒扫描** | 可选 ClamAV 预扫描和 VirusTotal 上报 |
 | **TLS** | 自带证书，或通过 Let's Encrypt 自动签发 |
@@ -276,6 +279,9 @@ AES-256-GCM，64 KiB 分块，分块计数器和末块标记都折进 nonce，�
 | `DELETE` | `/upload/{id}/{filename}`           | 放弃这次续传上传             |
 | `GET`    | `/{token}/{filename}`               | 下载或预览                   |
 | `HEAD`   | `/{token}/{filename}`               | 只取元数据                   |
+| `POST`   | `/collection`                       | 把已有的上传收进一条链接     |
+| `GET`    | `/c/{token}`                        | 集合：落地页 / JSON / 每行一个链接 |
+| `GET`    | `/c/{token}.{zip,tar,tar.gz}`       | 整个集合打包下载             |
 | `GET`    | `/({files}).{zip,tar,tar.gz}`       | 将多个文件打包下载           |
 | `DELETE` | `/{token}/{filename}/{delToken}`    | 删除文件                     |
 | `PUT`    | `/{filename}/scan`                  | ClamAV 扫描（需鉴权 + 限流） |
@@ -346,6 +352,43 @@ resuming at 1.4 GB of 5.0 GB
 ```
 
 如果服务端没有这些端点，客户端会自动退回普通 `PUT`。
+
+### 集合链接
+
+传五个日志文件就得到五条链接，而群里丢掉的总是第五条。集合就是把它们收进一条
+链接：
+
+```bash
+send put ./*.log --collection --collection-name "nightly logs"
+# https://send.to/c/aB3cD4eF
+```
+
+浏览器打开是带「打包下载全部」按钮的文件列表；`curl` 拿到的是每行一个分享链接；
+带 `Accept: application/json` 则返回完整记录。整包下载就是同一条链接加个后缀：
+
+```bash
+curl -sL https://send.to/c/aB3cD4eF.zip -o logs.zip     # 也支持 .tar 和 .tar.gz
+curl -s https://send.to/c/aB3cD4eF | xargs -n1 curl -O  # 或者一个个下
+```
+
+集合也可以由已经存在的上传拼出来，客户端内部就是这么做的：
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+    -d '{"name":"nightly logs","files":["https://send.to/aB3/app.log","https://send.to/cD4/worker.log"]}' \
+    https://send.to/collection
+```
+
+集合本身不持有任何字节：
+
+- 删除集合不会动里面的文件 —— 别人手里可能正拿着其中某一条链接。每个文件保留
+  自己的删除链接和自己的限制。
+- 成员过期、下载次数用尽或被删除时会自动从列表里消失；一个成员都不剩的集合直接
+  返回 404。
+- 下载整包会给每个成员各记一次下载，和单独下载它们完全一样。
+- 每个集合最多 100 个文件。
+- `--collection` 与 `--e2e` 不能同时用：每个文件有自己的密钥，一条链接装不下
+  多个密钥，除非把解密能力交给服务端。
 
 ### 服务端上传历史
 

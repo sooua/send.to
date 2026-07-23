@@ -645,6 +645,13 @@ func (s *Server) Run() {
 	r.HandleFunc("/({files:.*}).tar", s.rateLimit(http.HandlerFunc(s.tarHandler))).Methods("GET")
 	r.HandleFunc("/({files:.*}).tar.gz", s.rateLimit(http.HandlerFunc(s.tarGzHandler))).Methods("GET")
 
+	// Collections. The archive form is registered first so `.zip` is not read
+	// as part of the token.
+	r.HandleFunc("/c/{token:[0-9a-zA-Z]+}.{format:(?:zip|tar|tar\\.gz)}", s.rateLimit(http.HandlerFunc(s.collectionArchiveHandler))).Methods("GET")
+	r.HandleFunc("/c/{token:[0-9a-zA-Z]+}", s.rateLimit(http.HandlerFunc(s.collectionHandler))).Methods("GET")
+	r.HandleFunc("/c/{token:[0-9a-zA-Z]+}/{deletionToken}", s.deleteCollectionHandler).Methods("DELETE")
+	r.HandleFunc("/collection", s.basicAuthHandler(s.rateLimit(http.HandlerFunc(s.createCollectionHandler)))).Methods("POST")
+
 	// Resumable uploads. Registered ahead of the download and deletion routes
 	// because `/upload/{id}/{filename}` and `/{token}/{filename}/{deleteToken}`
 	// have the same shape; first match wins, and an upload token can never

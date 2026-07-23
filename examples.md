@@ -256,6 +256,35 @@ curl -s https://send.to/<token>/contract.pdf.age | age -d -o contract.pdf
 
 ---
 
+## One link for several files
+
+```bash
+send put ./*.log --collection --collection-name "nightly logs"
+# https://send.to/c/aB3cD4eF
+```
+
+Paste that one link instead of five. The recipient gets a page listing every
+file, or with curl:
+
+```bash
+curl -s https://send.to/c/aB3cD4eF                   # one URL per line
+curl -sL https://send.to/c/aB3cD4eF.zip -o logs.zip  # everything at once
+curl -s https://send.to/c/aB3cD4eF | xargs -n1 curl -O
+```
+
+Group uploads you already made — nothing is transferred twice:
+
+```bash
+a=$(curl -sS --upload-file app.log    https://send.to/app.log)
+b=$(curl -sS --upload-file worker.log https://send.to/worker.log)
+
+curl -sS -X POST -H "Content-Type: application/json" \
+    -d "{\"files\":[\"$a\",\"$b\"]}" https://send.to/collection
+```
+
+Deleting the collection does not delete the files, and a file that expires
+quietly leaves the list.
+
 ## An upload history that outlives the machine
 
 The delete link arrives once. If the machine that uploaded the file is a CI

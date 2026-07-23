@@ -150,6 +150,14 @@ func putCommand(serverFlags []cli.Flag) *cli.Command {
 				Usage: "override the stored filename (required with -)",
 			},
 			&cli.BoolFlag{
+				Name:  "collection",
+				Usage: "return one link listing every file instead of one link each",
+			},
+			&cli.StringFlag{
+				Name:  "collection-name",
+				Usage: "title for the collection page",
+			},
+			&cli.BoolFlag{
 				Name:  "json",
 				Usage: "print the full server response instead of the URL",
 			},
@@ -192,6 +200,15 @@ func runPut(c *cli.Context) error {
 
 	quiet := c.Bool("quiet")
 
+	collect := c.Bool("collection")
+	if collect && c.Bool("e2e") {
+		// Every file would carry its own key, and one link cannot hold several
+		// of them without handing the server the means to read the files.
+		return errors.New("--collection and --e2e cannot be combined; share the encrypted links individually")
+	}
+
+	var uploaded []string
+
 	for _, arg := range c.Args().Slice() {
 		result, err := uploadOne(c.Context, api, profile.URL, arg, c.String("name"), opts, quiet, c.Bool("e2e"))
 		if err != nil {
@@ -199,6 +216,16 @@ func runPut(c *cli.Context) error {
 		}
 
 		history.Add(profile.URL, result)
+		uploaded = append(uploaded, client.StripFragment(result.URL))
+
+		if collect {
+			// The point of a collection is one link, so the individual URLs
+			// stay off stdout.
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "  %s\n", result.URL)
+			}
+			continue
+		}
 
 		if c.Bool("json") {
 			if err := printJSON(result); err != nil {
@@ -214,8 +241,51 @@ func runPut(c *cli.Context) error {
 		}
 	}
 
+	if collect {
+		if err := createCollection(c, api, profile.URL, history, uploaded, quiet); err != nil {
+			// The files themselves are uploaded and their links are already in
+			// the history, so this is not a lost upload.
+			fmt.Fprintln(os.Stderr, "the files were uploaded, but the collection could not be created")
+			_ = history.Save()
+			return err
+		}
+	}
+
 	if err := history.Save(); err != nil {
 		fmt.Fprintln(os.Stderr, "warning: could not save history:", err)
+	}
+
+	return nil
+}
+
+// createCollection turns the uploads just made into a single link.
+func createCollection(c *cli.Context, api *client.Client, server string, history *client.History, uploaded []string, quiet bool) error {
+	collection, err := api.CreateCollection(c.Context, c.String("collection-name"), uploaded)
+	if err != nil {
+		return err
+	}
+
+	// Recorded like any upload, so `send ls` shows it and `send rm` can remove
+	// it again — deleting a collection leaves its files alone.
+	history.Add(server, &client.Result{
+		URL:       collection.URL,
+		DeleteURL: collection.DeleteURL,
+		Filename:  fmt.Sprintf("%d file(s)", len(collection.Files)),
+		Size:      collection.TotalSize,
+	})
+
+	if c.Bool("json") {
+		return printJSON(collection)
+	}
+
+	fmt.Println(collection.URL)
+
+	if !quiet {
+		fmt.Fprintf(os.Stderr, "  %d file(s) · %s\n", len(collection.Files), humanBytes(collection.TotalSize))
+		fmt.Fprintf(os.Stderr, "  all at once: %s\n", collection.ArchiveURL)
+		if collection.DeleteURL != "" {
+			fmt.Fprintf(os.Stderr, "  delete: send rm %s\n", collection.URL)
+		}
 	}
 
 	return nil
