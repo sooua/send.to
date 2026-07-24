@@ -122,9 +122,47 @@ func (s *StorjStorage) Delete(ctx context.Context, token string, filename string
 	return
 }
 
-// Purge cleans up the storage
-func (s *StorjStorage) Purge(context.Context, time.Duration) (err error) {
-	// NOOP expiration is set at upload time
+// Purge deletes every object created before the cutoff.
+//
+// Storj does expire objects on its own — unlike S3, UploadOptions.Expires is a
+// real lifetime — but only for objects written after --purge-days was
+// configured. Everything uploaded before that, or while the flag was unset,
+// had no expiry attached and would have stayed forever. The sweep also catches
+// objects whose expiry Storj has not collected yet.
+//
+// Keys are collected before deleting so the iterator is not mutated underneath
+// itself.
+func (s *StorjStorage) Purge(ctx context.Context, days time.Duration) error {
+	ctx = fpath.WithTempData(ctx, "", true)
+	cutoff := time.Now().Add(-days)
+
+	var expired []string
+
+	objects := s.project.ListObjects(ctx, s.bucket.Name, &uplink.ListObjectsOptions{
+		Recursive: true,
+		System:    true,
+	})
+
+	for objects.Next() {
+		item := objects.Item()
+		if item.IsPrefix {
+			continue
+		}
+		if item.System.Created.Before(cutoff) {
+			expired = append(expired, item.Key)
+		}
+	}
+
+	if err := objects.Err(); err != nil {
+		return err
+	}
+
+	for _, key := range expired {
+		if _, err := s.project.DeleteObject(ctx, s.bucket.Name, key); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

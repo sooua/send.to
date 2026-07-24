@@ -106,6 +106,25 @@ func (s *Server) initStorageQuota() error {
 	return nil
 }
 
+// reseedStorageQuota re-measures the backend and resets the counter to it.
+// Called after a purge sweep, which is the one moment the counter is known to
+// be wrong by an unknown amount. A failure only leaves the old estimate in
+// place, so it is logged rather than fatal — unlike at startup, where an
+// operator is still owed a hard answer about whether the limit works at all.
+func (s *Server) reseedStorageQuota(ctx context.Context) {
+	if !s.quota.enabled() {
+		return
+	}
+
+	used, err := s.storage.Usage(ctx)
+	if err != nil {
+		s.logger.Error("Could not re-measure storage after purge", "error", err)
+		return
+	}
+
+	s.quota.used.Store(int64(used))
+}
+
 // checkStorageQuota writes the 507 itself and reports whether the upload may
 // proceed, so every upload path refuses identically.
 func (s *Server) checkStorageQuota(w http.ResponseWriter, contentLength int64) bool {

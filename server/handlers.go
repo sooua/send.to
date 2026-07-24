@@ -581,10 +581,15 @@ func (s *Server) purgeHandler() {
 			<-ticker.C
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 			err := s.storage.Purge(ctx, s.purgeDays)
-			cancel()
 			if err != nil {
 				s.logger.Error("Error cleaning up expired files", "error", err)
+			} else {
+				// The sweep frees space the running counter never saw leave, so
+				// without this an instance drifts towards refusing uploads it has
+				// room for, until the next restart re-seeds it.
+				s.reseedStorageQuota(ctx)
 			}
+			cancel()
 		}
 	}()
 }

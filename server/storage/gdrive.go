@@ -103,6 +103,25 @@ func (s *GDrive) list(nextPageToken string, q string) (*drive.FileList, error) {
 	return s.service.Files.List().Fields("nextPageToken, files(id, name, mimeType)").Q(q).PageToken(nextPageToken).Do()
 }
 
+// listAll walks every page of a query and returns the files it matched.
+func (s *GDrive) listAll(q string) ([]*drive.File, error) {
+	var files []*drive.File
+
+	for pageToken := ""; ; {
+		page, err := s.list(pageToken, q)
+		if err != nil {
+			return nil, err
+		}
+
+		files = append(files, page.Files...)
+
+		if page.NextPageToken == "" {
+			return files, nil
+		}
+		pageToken = page.NextPageToken
+	}
+}
+
 func (s *GDrive) findID(filename string, token string) (string, error) {
 	filename = strings.ReplaceAll(filename, `'`, `\'`)
 	filename = strings.ReplaceAll(filename, `"`, `\"`)
@@ -248,36 +267,51 @@ func (s *GDrive) Delete(ctx context.Context, token string, filename string) (err
 	return
 }
 
-// Purge cleans up the storage
-func (s *GDrive) Purge(ctx context.Context, days time.Duration) (err error) {
-	nextPageToken := ""
+// Purge deletes every stored file older than the cutoff, and any token
+// directory left empty afterwards.
+//
+// It used to look for expired files directly under the root directory, where
+// there are none: Put stores everything one level down, in a directory named
+// after the upload token. The query matched nothing on every run, so
+// --purge-days did nothing at all and said so with a clean nil error.
+func (s *GDrive) Purge(ctx context.Context, days time.Duration) error {
+	cutoff := time.Now().Add(-1 * days).Format(time.RFC3339)
 
-	expirationDate := time.Now().Add(-1 * days).Format(time.RFC3339)
-	q := fmt.Sprintf("'%s' in parents and modifiedTime < '%s' and mimeType!='%s' and trashed=false", s.rootID, expirationDate, gDriveDirectoryMimeType)
-	l, err := s.list(nextPageToken, q)
+	tokenDirs, err := s.listAll(fmt.Sprintf("'%s' in parents and mimeType='%s' and trashed=false",
+		s.rootID, gDriveDirectoryMimeType))
 	if err != nil {
 		return err
 	}
 
-	for 0 < len(l.Files) {
-		for _, fi := range l.Files {
-			err = s.service.Files.Delete(fi.Id).Context(ctx).Do()
-			if err != nil {
-				return
+	for _, dir := range tokenDirs {
+		expired, err := s.listAll(fmt.Sprintf("'%s' in parents and modifiedTime < '%s' and trashed=false",
+			dir.Id, cutoff))
+		if err != nil {
+			return err
+		}
+
+		for _, file := range expired {
+			if err := s.service.Files.Delete(file.Id).Context(ctx).Do(); err != nil {
+				return err
 			}
 		}
 
-		if l.NextPageToken == "" {
-			break
+		// One directory per upload, so leaving the emptied ones behind grows the
+		// account without bound.
+		remaining, err := s.listAll(fmt.Sprintf("'%s' in parents and trashed=false", dir.Id))
+		if err != nil {
+			return err
+		}
+		if len(remaining) > 0 {
+			continue
 		}
 
-		l, err = s.list(l.NextPageToken, q)
-		if err != nil {
-			return
+		if err := s.service.Files.Delete(dir.Id).Context(ctx).Do(); err != nil {
+			return err
 		}
 	}
 
-	return
+	return nil
 }
 
 // IsNotExist indicates if a file doesn't exist on storage

@@ -77,9 +77,60 @@ func (s *S3Storage) Head(ctx context.Context, token string, filename string) (co
 	return
 }
 
-// Purge cleans up the storage
-func (s *S3Storage) Purge(context.Context, time.Duration) (err error) {
-	// NOOP expiration is set at upload time
+// Purge deletes every object last modified before the cutoff.
+//
+// This used to be a no-op justified by "expiration is set at upload time",
+// which was a misreading of the SDK: PutObjectInput.Expires is the HTTP
+// Expires header from RFC 7234 — a caching hint. S3 deletes nothing because of
+// it. An operator running --purge-days against S3 was told files were being
+// removed after N days while every one of them was kept forever.
+//
+// Listing the bucket is the only way to find them, so purge costs one
+// ListObjectsV2 page per 1000 objects. Deletes go out in batches of the same
+// size, which is also DeleteObjects' limit.
+func (s *S3Storage) Purge(ctx context.Context, days time.Duration) error {
+	cutoff := time.Now().Add(-days)
+
+	paginator := s3.NewListObjectsV2Paginator(s.s3, &s3.ListObjectsV2Input{
+		Bucket: aws.String(s.bucket),
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return err
+		}
+
+		expired := make([]types.ObjectIdentifier, 0, len(page.Contents))
+		for _, object := range page.Contents {
+			if object.Key == nil || object.LastModified == nil {
+				continue
+			}
+			if object.LastModified.Before(cutoff) {
+				expired = append(expired, types.ObjectIdentifier{Key: object.Key})
+			}
+		}
+
+		if len(expired) == 0 {
+			continue
+		}
+
+		response, err := s.s3.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+			Bucket: aws.String(s.bucket),
+			Delete: &types.Delete{Objects: expired, Quiet: aws.Bool(true)},
+		})
+		if err != nil {
+			return err
+		}
+
+		// A per-key failure does not fail the sweep — the next one retries it —
+		// but it must be visible, otherwise the bucket quietly stops shrinking.
+		for _, failure := range response.Errors {
+			s.logger.Error("Could not purge object",
+				"key", aws.ToString(failure.Key), "error", aws.ToString(failure.Message))
+		}
+	}
+
 	return nil
 }
 
@@ -164,6 +215,9 @@ func (s *S3Storage) Put(ctx context.Context, token string, filename string, read
 		u.LeavePartsOnError = false
 	})
 
+	// Expires is the HTTP caching header, not an object lifetime: it tells
+	// caches when the object stops being worth keeping, and the purge sweep is
+	// what actually removes it.
 	var expire *time.Time
 	if s.purgeDays.Hours() > 0 {
 		expire = aws.Time(time.Now().Add(s.purgeDays))

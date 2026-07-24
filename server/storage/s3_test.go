@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -116,6 +117,50 @@ func TestS3StorageRoundTripAndUsage(t *testing.T) {
 	if after-before != uint64(len(payload)) {
 		t.Errorf("Usage grew by %d, want %d — the total-size quota would be wrong by that much",
 			after-before, len(payload))
+	}
+}
+
+func TestS3PurgeDeletesExpiredObjects(t *testing.T) {
+	store := s3TestStorage(t)
+	ctx := t.Context()
+
+	token := "purge" + randomSuffix()
+
+	if err := store.Put(ctx, token, "a.bin", bytes.NewReader([]byte("old")), "text/plain", 3); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = store.Delete(ctx, token, "a.bin") }()
+
+	// Everything in the bucket is older than a cutoff in the future, so this
+	// sweep must empty it. Before this backend had a real Purge it returned nil
+	// here and deleted nothing, and --purge-days was a promise the server never
+	// kept.
+	if err := store.Purge(ctx, -time.Minute); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := store.Head(ctx, token, "a.bin"); err == nil {
+		t.Fatal("object survived a purge that covered it")
+	}
+}
+
+func TestS3PurgeKeepsFreshObjects(t *testing.T) {
+	store := s3TestStorage(t)
+	ctx := t.Context()
+
+	token := "fresh" + randomSuffix()
+
+	if err := store.Put(ctx, token, "a.bin", bytes.NewReader([]byte("new")), "text/plain", 3); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = store.Delete(ctx, token, "a.bin") }()
+
+	if err := store.Purge(ctx, 24*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := store.Head(ctx, token, "a.bin"); err != nil {
+		t.Fatalf("purge deleted an object that had not expired: %v", err)
 	}
 }
 
