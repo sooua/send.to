@@ -17,7 +17,7 @@ import (
 
 // Version is what a build without -ldflags reports. Releases and Docker images
 // overwrite it from the git tag, so this only ever shows on a local `go build`.
-var Version = "1.0.0"
+var Version = "1.0.1"
 var helpTemplate = `NAME:
 {{.Name}} - {{.Usage}}
 

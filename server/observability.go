@@ -13,7 +13,7 @@ import (
 
 // Version is the build version, set from cmd at startup. The value here is the
 // fallback for anyone embedding the server package without going through cmd.
-var Version = "1.0.0"
+var Version = "1.0.1"
 
 // metrics holds the counters exposed on /metrics. Plain atomics rather than a
 // Prometheus client: the exposition format below is all the scrape needs, and
