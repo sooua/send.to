@@ -37,10 +37,12 @@ jobs:
           - goos: android
             goarch: arm64
           # END Android ARM 8
-          # Windows ARM 7
+          # Was windows/arm with GOARM=7. That port is gone from the toolchain:
+          # `go env` itself exits non-zero under GOOS=windows GOARCH=arm, so the
+          # v1.0.0 job died in setup-go having built nothing. arm64 is the
+          # supported ARM target on Windows.
           - goos: windows
-            goarch: arm
-            goarm: 7
+            goarch: arm64
           # BEGIN Other architectures
           # BEGIN riscv64 & ARM64
           - goos: linux
