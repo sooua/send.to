@@ -86,6 +86,10 @@ jobs:
       fail-fast: false
 
     runs-on: ubuntu-latest
+    # The default token is read-only, which the upload step reports as the
+    # unhelpful "Resource not accessible by integration".
+    permissions:
+      contents: write
     env:
       GOOS: ${{ matrix.goos }}
       GOARCH: ${{ matrix.goarch }}
@@ -98,8 +102,14 @@ jobs:
       - name: Show workflow information
         id: get_filename
         run: |
-          export _NAME=$(jq ".[\"$GOOS-$GOARCH$GOARM$GOMIPS\"].friendlyName" -r < .github/build/friendly-filenames.json)
-          echo "GOOS: $GOOS, GOARCH: $GOARCH, GOARM: $GOARM, GOMIPS: $GOMIPS, RELEASE_NAME: $_NAME"
+          set -euo pipefail
+          # The asset name is built from the matrix entry itself. It used to be
+          # looked up in .github/build/friendly-filenames.json, a file this
+          # repository does not have: jq read nothing, the assignment swallowed
+          # the failure, and every asset was named "sendto-<tag>-" with the
+          # architecture missing.
+          _NAME="$GOOS-$GOARCH${GOARM:+v$GOARM}"
+          echo "GOOS: $GOOS, GOARCH: $GOARCH, GOARM: $GOARM, RELEASE_NAME: $_NAME"
           echo "ASSET_NAME=$_NAME" >> $GITHUB_OUTPUT
           echo "GIT_TAG=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
           echo "ASSET_NAME=$_NAME" >> $GITHUB_ENV
@@ -164,7 +174,7 @@ jobs:
             ./sendto-${{ steps.get_filename.outputs.GIT_TAG }}-${{ steps.get_filename.outputs.ASSET_NAME }}/*
 
       - name: Upload binaries to release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: github.event_name == 'release'
         with:
           files: |
