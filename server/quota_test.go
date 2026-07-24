@@ -206,6 +206,69 @@ func TestQuotaCounterNeverGoesNegative(t *testing.T) {
 	}
 }
 
+// fixedUsageStorage reports whatever the test says the backend holds.
+type fixedUsageStorage struct {
+	storage.Storage
+	used uint64
+	err  error
+}
+
+func (fixedUsageStorage) Type() string { return "stub" }
+
+func (f fixedUsageStorage) Usage(context.Context) (uint64, error) {
+	return f.used, f.err
+}
+
+// A purge sweep removes bytes the counter never saw leave, so the counter has
+// to be re-measured afterwards. Without this an instance drifts towards
+// refusing uploads it has room for, until someone restarts it.
+func TestStorageQuotaIsReseededAfterAPurge(t *testing.T) {
+	srvr, tmpDir := newTestServer(t)
+	defer os.RemoveAll(tmpDir)
+
+	srvr.storage = fixedUsageStorage{used: 900}
+	srvr.maxStorageSize = 1000
+
+	if err := srvr.initStorageQuota(); err != nil {
+		t.Fatal(err)
+	}
+	if srvr.quota.allows(200) {
+		t.Fatal("a full instance accepted an upload it has no room for")
+	}
+
+	// The sweep dropped most of it.
+	srvr.storage = fixedUsageStorage{used: 100}
+	srvr.reseedStorageQuota(t.Context())
+
+	if got := srvr.quota.usage(); got != 100 {
+		t.Errorf("usage after the purge = %d, want 100", got)
+	}
+	if !srvr.quota.allows(200) {
+		t.Error("the instance still refuses uploads it now has room for")
+	}
+}
+
+// A backend that cannot be re-measured must leave the previous estimate alone
+// rather than reset the counter to zero and hand out space that is not there.
+func TestStorageQuotaKeepsItsEstimateWhenReseedingFails(t *testing.T) {
+	srvr, tmpDir := newTestServer(t)
+	defer os.RemoveAll(tmpDir)
+
+	srvr.storage = fixedUsageStorage{used: 900}
+	srvr.maxStorageSize = 1000
+
+	if err := srvr.initStorageQuota(); err != nil {
+		t.Fatal(err)
+	}
+
+	srvr.storage = fixedUsageStorage{err: errors.New("bucket unreachable")}
+	srvr.reseedStorageQuota(t.Context())
+
+	if got := srvr.quota.usage(); got != 900 {
+		t.Errorf("usage = %d after a failed re-measurement, want the previous 900", got)
+	}
+}
+
 // unsupportedUsageStorage stands in for Google Drive or Storj: everything else
 // works, but it cannot say how much it holds.
 type unsupportedUsageStorage struct {
