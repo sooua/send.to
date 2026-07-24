@@ -94,7 +94,7 @@ func (s *Server) basicAuthHandler(h http.Handler) http.HandlerFunc {
 
 		username, password, authOK := r.BasicAuth()
 		if !authOK && !authorized {
-			http.Error(w, "Not authorized", http.StatusUnauthorized)
+			s.httpError(w, r, http.StatusUnauthorized, msgNotAuthorized)
 			return
 		}
 
@@ -111,7 +111,7 @@ func (s *Server) basicAuthHandler(h http.Handler) http.HandlerFunc {
 		}
 
 		if !authorized {
-			http.Error(w, "Not authorized", http.StatusUnauthorized)
+			s.httpError(w, r, http.StatusUnauthorized, msgNotAuthorized)
 			return
 		}
 

@@ -73,7 +73,7 @@ func (s *Server) copyArchiveEntry(ctx context.Context, entry archiveEntry, write
 // archiveError reports a per-entry failure. Once the first entry has been
 // written the response headers and some body bytes are already on the wire, so
 // the only possible signal is a truncated archive; the reason goes to the log.
-func (s *Server) archiveError(w http.ResponseWriter, entry archiveEntry, err error, headersSent bool) {
+func (s *Server) archiveError(w http.ResponseWriter, r *http.Request, entry archiveEntry, err error, headersSent bool) {
 	s.metrics.downloadErrors.Add(1)
 	s.logger.Error("Error building archive", "token", maskToken(entry.token), "filename", entry.filename, "error", err)
 
@@ -82,11 +82,11 @@ func (s *Server) archiveError(w http.ResponseWriter, entry archiveEntry, err err
 	}
 
 	if s.storage.IsNotExist(err) {
-		http.Error(w, "File not found", http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgFileNotFound)
 		return
 	}
 
-	http.Error(w, "Could not retrieve file.", http.StatusInternalServerError)
+	s.httpError(w, r, http.StatusInternalServerError, msgRetrieveFailed)
 }
 
 func (s *Server) zipHandler(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +94,7 @@ func (s *Server) zipHandler(w http.ResponseWriter, r *http.Request) {
 
 	entries := parseArchiveKeys(vars["files"], s.proxyPath)
 	if len(entries) == 0 {
-		http.Error(w, "No valid files requested", http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgNoValidFiles)
 		return
 	}
 
@@ -129,7 +129,7 @@ func (s *Server) zipHandler(w http.ResponseWriter, r *http.Request) {
 		})
 
 		if err != nil {
-			s.archiveError(w, entry, err, written > 0)
+			s.archiveError(w, r, entry, err, written > 0)
 			return
 		}
 
@@ -146,7 +146,7 @@ func (s *Server) tarGzHandler(w http.ResponseWriter, r *http.Request) {
 
 	entries := parseArchiveKeys(vars["files"], s.proxyPath)
 	if len(entries) == 0 {
-		http.Error(w, "No valid files requested", http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgNoValidFiles)
 		return
 	}
 
@@ -169,7 +169,7 @@ func (s *Server) tarHandler(w http.ResponseWriter, r *http.Request) {
 
 	entries := parseArchiveKeys(vars["files"], s.proxyPath)
 	if len(entries) == 0 {
-		http.Error(w, "No valid files requested", http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgNoValidFiles)
 		return
 	}
 
@@ -212,7 +212,7 @@ func (s *Server) writeTarEntries(w http.ResponseWriter, r *http.Request, zw *tar
 		})
 
 		if err != nil {
-			s.archiveError(w, entry, err, written > 0)
+			s.archiveError(w, r, entry, err, written > 0)
 			return
 		}
 

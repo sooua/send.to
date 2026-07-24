@@ -206,7 +206,7 @@ func (m *ipFilterMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				"user_agent", r.UserAgent(),
 			)
 		}
-		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		httpErrorMsg(w, r, http.StatusForbidden, msgForbidden)
 		return
 	}
 

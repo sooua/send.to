@@ -197,17 +197,17 @@ func (s *Server) createCollectionHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := json.NewDecoder(io.LimitReader(r.Body, collectionMaxBody)).Decode(&body); err != nil {
-		http.Error(w, "Body must be JSON: {\"files\": [\"<url>\", …]}", http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgCollectionBody)
 		return
 	}
 
 	if len(body.Files) == 0 {
-		http.Error(w, "A collection needs at least one file", http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgCollectionEmpty)
 		return
 	}
 
 	if len(body.Files) > collectionMaxFiles {
-		http.Error(w, fmt.Sprintf("A collection holds at most %d files", collectionMaxFiles), http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgCollectionFull, collectionMaxFiles)
 		return
 	}
 
@@ -222,7 +222,7 @@ func (s *Server) createCollectionHandler(w http.ResponseWriter, r *http.Request)
 	for _, ref := range body.Files {
 		fileToken, filename, ok := parseCollectionRef(ref, s.proxyPath)
 		if !ok {
-			http.Error(w, fmt.Sprintf("%q is not a share link from this server", ref), http.StatusBadRequest)
+			s.httpError(w, r, http.StatusBadRequest, msgNotAShareLink, ref)
 			return
 		}
 
@@ -236,7 +236,7 @@ func (s *Server) createCollectionHandler(w http.ResponseWriter, r *http.Request)
 		// and does not spend a download from its budget.
 		m, err := s.checkMetadata(r.Context(), fileToken, filename)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("%s is not available", filename), http.StatusNotFound)
+			s.httpError(w, r, http.StatusNotFound, msgFileUnavailable, filename)
 			return
 		}
 
@@ -253,7 +253,7 @@ func (s *Server) createCollectionHandler(w http.ResponseWriter, r *http.Request)
 
 	if err := s.writeCollection(r.Context(), collectionToken, data); err != nil {
 		s.logger.Error("Could not store collection", "error", err)
-		http.Error(w, "Could not create the collection", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgCollectionFailed)
 		return
 	}
 
@@ -295,7 +295,7 @@ func sanitizeCollectionName(name string) string {
 func (s *Server) liveCollection(w http.ResponseWriter, r *http.Request, collectionToken string) (*collectionData, bool) {
 	data, err := s.readCollection(r.Context(), collectionToken)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return nil, false
 	}
 
@@ -314,7 +314,7 @@ func (s *Server) liveCollection(w http.ResponseWriter, r *http.Request, collecti
 			if err := s.storage.Delete(r.Context(), collectionToken, collectionObject); err != nil && !s.storage.IsNotExist(err) {
 				s.logger.Error("Could not delete an empty collection", "token", maskToken(collectionToken), "error", err)
 			}
-			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			s.httpError(w, r, http.StatusNotFound, msgNotFound)
 			return nil, false
 		}
 
@@ -410,18 +410,18 @@ func (s *Server) deleteCollectionHandler(w http.ResponseWriter, r *http.Request)
 
 	data, err := s.readCollection(r.Context(), collectionToken)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return
 	}
 
 	if data.DeletionToken != vars["deletionToken"] {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return
 	}
 
 	if err := s.storage.Delete(r.Context(), collectionToken, collectionObject); err != nil && !s.storage.IsNotExist(err) {
 		s.logger.Error("Could not delete collection", "token", maskToken(collectionToken), "error", err)
-		http.Error(w, "Could not delete the collection", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgCollectionDelete)
 		return
 	}
 

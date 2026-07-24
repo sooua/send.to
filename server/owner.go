@@ -191,7 +191,7 @@ func (s *Server) forgetOwnership(ctx context.Context, hash, uploadToken, filenam
 func (s *Server) ownerFilesHandler(w http.ResponseWriter, r *http.Request) {
 	hash := ownerHashFromHeaders(r.Header)
 	if hash == "" {
-		http.Error(w, fmt.Sprintf("X-Owner-Token must be at least %d characters", ownerTokenMinLength), http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgOwnerTokenShort, ownerTokenMinLength)
 		return
 	}
 
@@ -201,7 +201,7 @@ func (s *Server) ownerFilesHandler(w http.ResponseWriter, r *http.Request) {
 	entries, err := s.readOwnerIndex(r.Context(), hash)
 	if err != nil {
 		s.logger.Error("Could not read the owner index", "error", err)
-		http.Error(w, "Could not read the upload list", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgOwnerListFailed)
 		return
 	}
 

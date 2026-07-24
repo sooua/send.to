@@ -76,7 +76,7 @@ func (s *Server) postHandler(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(_24K); nil != err {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Error parsing multipart form", "error", err)
-		http.Error(w, "Could not parse multipart form", http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgMultipartFailed)
 		return
 	}
 
@@ -132,14 +132,14 @@ func (s *Server) storeMultipartFile(w http.ResponseWriter, r *http.Request, toke
 	if err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Error opening uploaded file", "error", err)
-		http.Error(w, "Could not read uploaded file", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgReadUpload)
 		return result, err
 	}
 	defer storage.CloseCheck(f)
 
 	// The part is spooled to disk before its length is known, so the only
 	// check available here is whether there is any room left at all.
-	if !s.checkTempQuota(w, 0) {
+	if !s.checkTempQuota(w, r, 0) {
 		return result, errors.New("temporary space exhausted")
 	}
 
@@ -147,7 +147,7 @@ func (s *Server) storeMultipartFile(w http.ResponseWriter, r *http.Request, toke
 	if err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Error", "error", err)
-		http.Error(w, "Could not buffer upload", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgBufferFailed)
 		return result, err
 	}
 	defer s.cleanTmpFile(file)
@@ -156,29 +156,29 @@ func (s *Server) storeMultipartFile(w http.ResponseWriter, r *http.Request, toke
 	if err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Error", "error", err)
-		http.Error(w, "Could not buffer upload", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgBufferFailed)
 		return result, err
 	}
 
 	if _, err = file.Seek(0, io.SeekStart); err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Error", "error", err)
-		http.Error(w, "Cannot reset cache file", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgResetCache)
 		return result, err
 	}
 
 	if s.maxUploadSize > 0 && contentLength > s.maxUploadSize {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Warn("Entity too large")
-		http.Error(w, http.StatusText(http.StatusRequestEntityTooLarge), http.StatusRequestEntityTooLarge)
+		s.httpError(w, r, http.StatusRequestEntityTooLarge, msgEntityTooLarge)
 		return result, errors.New("entity too large")
 	}
 
-	if err := s.prescan(w, file.Name()); err != nil {
+	if err := s.prescan(w, r, file.Name()); err != nil {
 		return result, err
 	}
 
-	if !s.checkStorageQuota(w, contentLength) {
+	if !s.checkStorageQuota(w, r, contentLength) {
 		return result, errors.New("storage quota exhausted")
 	}
 
@@ -186,14 +186,14 @@ func (s *Server) storeMultipartFile(w http.ResponseWriter, r *http.Request, toke
 	if err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Warn("Invalid upload headers", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		s.httpErrorFor(w, r, http.StatusBadRequest, err)
 		return result, err
 	}
 
 	if err := s.store(r.Context(), token, filename, file, contentType, contentLength, metadata, r.Header.Get("X-Encrypt-Password")); err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Backend storage error", "error", err)
-		http.Error(w, "Could not save file", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgSaveFailed)
 		return result, err
 	}
 
@@ -221,7 +221,7 @@ func (s *Server) putHandler(w http.ResponseWriter, r *http.Request) {
 	if contentLength < 1 || s.performClamavPrescan {
 		// Length unknown until it has been spooled, so this can only ask
 		// whether there is room for another upload in progress at all.
-		if !s.checkTempQuota(w, contentLength) {
+		if !s.checkTempQuota(w, r, contentLength) {
 			return
 		}
 
@@ -230,7 +230,7 @@ func (s *Server) putHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			s.metrics.uploadErrors.Add(1)
 			s.logger.Error("Error", "error", err)
-			http.Error(w, "Could not buffer upload", http.StatusInternalServerError)
+			s.httpError(w, r, http.StatusInternalServerError, msgBufferFailed)
 			return
 		}
 
@@ -240,7 +240,7 @@ func (s *Server) putHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			s.metrics.uploadErrors.Add(1)
 			s.logger.Error("Error", "error", err)
-			http.Error(w, "Could not buffer upload", http.StatusInternalServerError)
+			s.httpError(w, r, http.StatusInternalServerError, msgBufferFailed)
 
 			return
 		}
@@ -249,14 +249,14 @@ func (s *Server) putHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			s.metrics.uploadErrors.Add(1)
 			s.logger.Error("Error", "error", err)
-			http.Error(w, "Cannot reset cache file", http.StatusInternalServerError)
+			s.httpError(w, r, http.StatusInternalServerError, msgResetCache)
 
 			return
 		}
 
 		contentLength = n
 
-		if err := s.prescan(w, file.Name()); err != nil {
+		if err := s.prescan(w, r, file.Name()); err != nil {
 			return
 		}
 
@@ -266,18 +266,18 @@ func (s *Server) putHandler(w http.ResponseWriter, r *http.Request) {
 	if s.maxUploadSize > 0 && contentLength > s.maxUploadSize {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Warn("Entity too large")
-		http.Error(w, http.StatusText(http.StatusRequestEntityTooLarge), http.StatusRequestEntityTooLarge)
+		s.httpError(w, r, http.StatusRequestEntityTooLarge, msgEntityTooLarge)
 		return
 	}
 
 	if contentLength == 0 {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Warn("Empty content-length")
-		http.Error(w, "Could not upload empty file", http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgEmptyUpload)
 		return
 	}
 
-	if !s.checkStorageQuota(w, contentLength) {
+	if !s.checkStorageQuota(w, r, contentLength) {
 		return
 	}
 
@@ -289,14 +289,14 @@ func (s *Server) putHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Warn("Invalid upload headers", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		s.httpErrorFor(w, r, http.StatusBadRequest, err)
 		return
 	}
 
 	if err := s.store(r.Context(), token, filename, reader, contentType, contentLength, metadata, r.Header.Get("X-Encrypt-Password")); err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Error putting new file", "error", err)
-		http.Error(w, "Could not save file", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgSaveFailed)
 		return
 	}
 
@@ -325,7 +325,7 @@ func (s *Server) writeUploadResponse(w http.ResponseWriter, r *http.Request, res
 
 // prescan runs the optional ClamAV scan and writes the error response itself,
 // so both upload paths reject infected files identically.
-func (s *Server) prescan(w http.ResponseWriter, path string) error {
+func (s *Server) prescan(w http.ResponseWriter, r *http.Request, path string) error {
 	if !s.performClamavPrescan {
 		return nil
 	}
@@ -334,14 +334,14 @@ func (s *Server) prescan(w http.ResponseWriter, path string) error {
 	if err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Error", "error", err)
-		http.Error(w, "Could not perform prescan", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgPrescanFailed)
 		return err
 	}
 
 	if status != clamavScanStatusOK {
 		s.metrics.virusScanBlocked.Add(1)
 		s.logger.Warn("Clamav prescan positive", "status", status)
-		http.Error(w, "Clamav prescan found a virus", http.StatusPreconditionFailed)
+		s.httpError(w, r, http.StatusPreconditionFailed, msgVirusFound)
 		return errors.New("clamav prescan positive")
 	}
 
@@ -480,7 +480,7 @@ func metadataForHeaders(contentType string, contentLength int64, randomTokenLeng
 	if v := h.Get("Max-Downloads"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 1 {
-			return metadata, errors.New("Max-Downloads must be a positive integer")
+			return metadata, userErrorf(msgMaxDownloads)
 		}
 		metadata.MaxDownloads = n
 	}
@@ -488,10 +488,10 @@ func metadataForHeaders(contentType string, contentLength int64, randomTokenLeng
 	if v := h.Get("Max-Days"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 1 {
-			return metadata, errors.New("Max-Days must be a positive integer")
+			return metadata, userErrorf(msgMaxDays)
 		}
 		if n > maxDaysLimit {
-			return metadata, fmt.Errorf("Max-Days must be %d or less", maxDaysLimit)
+			return metadata, userErrorf(msgMaxDaysTooLarge, maxDaysLimit)
 		}
 		metadata.MaxDate = time.Now().Add(time.Hour * 24 * time.Duration(n))
 	}

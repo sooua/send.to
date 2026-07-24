@@ -454,7 +454,7 @@ func panicHandler(next http.Handler, logger *slog.Logger) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				logger.Error("Panic recovered", "error", err, "method", r.Method, "path", redactPath(r.URL.Path))
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				httpErrorMsg(w, r, http.StatusInternalServerError, msgInternalError)
 			}
 		}()
 		next.ServeHTTP(w, r)
@@ -568,7 +568,7 @@ func (s *Server) rateLimit(next http.Handler) http.HandlerFunc {
 		if !s.rateLimiter.allow(ip) {
 			s.logger.Warn("Rate limit exceeded", "ip", ip, "path", redactPath(r.URL.Path))
 			s.metrics.rateLimited.Add(1)
-			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+			s.httpError(w, r, http.StatusTooManyRequests, msgTooManyRequests)
 			return
 		}
 		next.ServeHTTP(w, r)

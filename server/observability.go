@@ -114,7 +114,7 @@ func (s *Server) metricsHandler(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) qrHandler(w http.ResponseWriter, r *http.Request) {
 	target := r.URL.Query().Get("url")
 	if target == "" {
-		http.Error(w, "missing url parameter", http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgQRMissingURL)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (s *Server) qrHandler(w http.ResponseWriter, r *http.Request) {
 	// endpoint cannot be used to mint QR codes for arbitrary third-party
 	// URLs under the operator's domain.
 	if !s.isOwnURL(r, target) {
-		http.Error(w, "url must point at this server", http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgQRForeignURL)
 		return
 	}
 
@@ -136,7 +136,7 @@ func (s *Server) qrHandler(w http.ResponseWriter, r *http.Request) {
 	png, err := qrcode.Encode(target, qrcode.Medium, size)
 	if err != nil {
 		s.logger.Error("Error encoding QR code", "error", err)
-		http.Error(w, "could not render QR code", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgQRRenderFailed)
 		return
 	}
 

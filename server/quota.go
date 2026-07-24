@@ -127,7 +127,7 @@ func (s *Server) reseedStorageQuota(ctx context.Context) {
 
 // checkStorageQuota writes the 507 itself and reports whether the upload may
 // proceed, so every upload path refuses identically.
-func (s *Server) checkStorageQuota(w http.ResponseWriter, contentLength int64) bool {
+func (s *Server) checkStorageQuota(w http.ResponseWriter, r *http.Request, contentLength int64) bool {
 	if s.quota.allows(contentLength) {
 		return true
 	}
@@ -135,7 +135,7 @@ func (s *Server) checkStorageQuota(w http.ResponseWriter, contentLength int64) b
 	s.metrics.uploadErrors.Add(1)
 	s.logger.Warn("Storage quota exhausted",
 		"limit", s.maxStorageSize, "used", s.quota.usage(), "requested", contentLength)
-	http.Error(w, "This server is full", http.StatusInsufficientStorage)
+	s.httpError(w, r, http.StatusInsufficientStorage, msgServerFull)
 
 	return false
 }
@@ -176,7 +176,7 @@ func (s *Server) tempDir() string {
 
 // checkTempQuota reports whether n more bytes of spool space may be used,
 // writing the 507 itself.
-func (s *Server) checkTempQuota(w http.ResponseWriter, n int64) bool {
+func (s *Server) checkTempQuota(w http.ResponseWriter, r *http.Request, n int64) bool {
 	if s.maxTempSize <= 0 {
 		return true
 	}
@@ -193,7 +193,7 @@ func (s *Server) checkTempQuota(w http.ResponseWriter, n int64) bool {
 
 	s.metrics.uploadErrors.Add(1)
 	s.logger.Warn("Temporary space exhausted", "limit", s.maxTempSize, "requested", n)
-	http.Error(w, "This server has no room for another upload in progress", http.StatusInsufficientStorage)
+	s.httpError(w, r, http.StatusInsufficientStorage, msgSpoolFull)
 
 	return false
 }

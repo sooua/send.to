@@ -270,7 +270,7 @@ func (s *Server) viewHandler(w http.ResponseWriter, r *http.Request) {
 		if hasHTMLTemplate(htmlTemplates, "index.html") {
 			if err := htmlTemplates.ExecuteTemplate(w, "index.html", data); err != nil {
 				s.logger.Error("Error rendering index.html", "error", err)
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				s.httpError(w, r, http.StatusInternalServerError, msgInternalError)
 			}
 			return
 		}
@@ -285,7 +285,7 @@ func (s *Server) viewHandler(w http.ResponseWriter, r *http.Request) {
 	if hasTextTemplate(textTemplates, "index.txt") {
 		if err := textTemplates.ExecuteTemplate(w, "index.txt", data); err != nil {
 			s.logger.Error("Error rendering index.txt", "error", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			s.httpError(w, r, http.StatusInternalServerError, msgInternalError)
 		}
 		return
 	}
@@ -355,8 +355,8 @@ func hasTextTemplate(set *textTemplate.Template, name string) bool {
 	return set != nil && set.Lookup(name) != nil
 }
 
-func (s *Server) notFoundHandler(w http.ResponseWriter, _ *http.Request) {
-	http.Error(w, http.StatusText(404), 404)
+func (s *Server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	s.httpError(w, r, http.StatusNotFound, msgNotFound)
 }
 
 func sanitize(fileName string) string {
@@ -604,17 +604,17 @@ func (s *Server) deleteHandler(w http.ResponseWriter, r *http.Request) {
 	m, err := s.checkDeletionToken(r.Context(), deletionToken, token, filename)
 	if err != nil {
 		s.logger.Error("Error metadata", "error", err)
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return
 	}
 
 	err = s.storage.Delete(r.Context(), token, filename)
 	if s.storage.IsNotExist(err) {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return
 	} else if err != nil {
 		s.logger.Error("Error", "error", err)
-		http.Error(w, "Could not delete file.", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgDeleteFailed)
 		return
 	}
 

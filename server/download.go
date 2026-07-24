@@ -34,7 +34,7 @@ func (s *Server) previewHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		s.logger.Error("Error metadata", "error", err)
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return
 	}
 
@@ -62,7 +62,7 @@ func (s *Server) previewHandler(w http.ResponseWriter, r *http.Request) {
 
 	contentLength, err := s.storage.Head(r.Context(), token, filename)
 	if err != nil {
-		http.Error(w, http.StatusText(404), 404)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return
 	}
 
@@ -215,7 +215,7 @@ func (s *Server) headHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		s.logger.Error("Error metadata", "error", err)
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return
 	}
 
@@ -227,11 +227,11 @@ func (s *Server) headHandler(w http.ResponseWriter, r *http.Request) {
 
 	contentLength, err := s.storage.Head(r.Context(), token, filename)
 	if s.storage.IsNotExist(err) {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return
 	} else if err != nil {
 		s.logger.Error("Error", "error", err)
-		http.Error(w, "Could not retrieve file.", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgRetrieveFailed)
 		return
 	}
 
@@ -265,7 +265,7 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		s.logger.Error("Error metadata", "error", err)
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return
 	}
 
@@ -287,12 +287,12 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 	defer storage.CloseCheck(reader)
 
 	if s.storage.IsNotExist(err) {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return
 	} else if err != nil {
 		s.metrics.downloadErrors.Add(1)
 		s.logger.Error("Error", "error", err)
-		http.Error(w, "Could not retrieve file.", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgRetrieveFailed)
 		return
 	}
 	if rng != nil {
@@ -329,7 +329,7 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 
 	reader, err = attachDecryptionReader(reader, password)
 	if err != nil {
-		http.Error(w, "Could not decrypt file", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgDecryptFailed)
 		return
 	}
 
@@ -355,7 +355,7 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.metrics.downloadErrors.Add(1)
 		s.logger.Error("Error", "error", err)
-		http.Error(w, "Error occurred copying to output stream", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgCopyFailed)
 		return
 	}
 

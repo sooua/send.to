@@ -25,8 +25,6 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -83,21 +81,21 @@ var contentRangePattern = regexp.MustCompile(`^bytes (\d+)-(\d+)/(\d+)$`)
 func parseUploadContentRange(v string) (start, end, total int64, err error) {
 	m := contentRangePattern.FindStringSubmatch(strings.TrimSpace(v))
 	if m == nil {
-		return 0, 0, 0, errors.New("Content-Range must look like `bytes <start>-<end>/<total>`")
+		return 0, 0, 0, userErrorf(msgContentRangeForm)
 	}
 
 	if start, err = strconv.ParseInt(m[1], 10, 64); err != nil {
-		return 0, 0, 0, errors.New("Content-Range start is out of range")
+		return 0, 0, 0, userErrorf(msgContentRangeFrom)
 	}
 	if end, err = strconv.ParseInt(m[2], 10, 64); err != nil {
-		return 0, 0, 0, errors.New("Content-Range end is out of range")
+		return 0, 0, 0, userErrorf(msgContentRangeTo)
 	}
 	if total, err = strconv.ParseInt(m[3], 10, 64); err != nil {
-		return 0, 0, 0, errors.New("Content-Range total is out of range")
+		return 0, 0, 0, userErrorf(msgContentRangeAll)
 	}
 
 	if end < start || end >= total {
-		return 0, 0, 0, errors.New("Content-Range is not a valid span of the declared total")
+		return 0, 0, 0, userErrorf(msgContentRangeSpan)
 	}
 
 	return start, end, total, nil
@@ -208,30 +206,30 @@ func (s *Server) createUploadSessionHandler(w http.ResponseWriter, r *http.Reque
 	total, err := strconv.ParseInt(r.Header.Get("Upload-Length"), 10, 64)
 	if err != nil || total < 1 {
 		s.metrics.uploadErrors.Add(1)
-		http.Error(w, "Upload-Length must be the total size in bytes", http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgUploadLength)
 		return
 	}
 
 	if s.maxUploadSize > 0 && total > s.maxUploadSize {
 		s.metrics.uploadErrors.Add(1)
-		http.Error(w, http.StatusText(http.StatusRequestEntityTooLarge), http.StatusRequestEntityTooLarge)
+		s.httpError(w, r, http.StatusRequestEntityTooLarge, msgEntityTooLarge)
 		return
 	}
 
 	// The password would have to be spooled next to the data to survive
 	// between chunks, and storing it in clear is worse than not offering it.
 	if r.Header.Get("X-Encrypt-Password") != "" {
-		http.Error(w, "X-Encrypt-Password is not available on resumable uploads — encrypt on the client instead", http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgResumableNoPass)
 		return
 	}
 
 	// Both quotas are checked against the declared total, so a session that
 	// cannot possibly be stored is refused before a byte is transferred.
-	if !s.checkStorageQuota(w, total) {
+	if !s.checkStorageQuota(w, r, total) {
 		return
 	}
 
-	if !s.checkTempQuota(w, total) {
+	if !s.checkTempQuota(w, r, total) {
 		return
 	}
 
@@ -241,7 +239,7 @@ func (s *Server) createUploadSessionHandler(w http.ResponseWriter, r *http.Reque
 	if _, err := metadataForHeaders(contentType, total, s.randomTokenLength, r.Header); err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Warn("Invalid upload headers", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		s.httpErrorFor(w, r, http.StatusBadRequest, err)
 		return
 	}
 
@@ -266,7 +264,7 @@ func (s *Server) createUploadSessionHandler(w http.ResponseWriter, r *http.Reque
 	if err := s.saveSession(sess); err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Could not create upload session", "error", err)
-		http.Error(w, "Could not create upload session", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgSessionFailed)
 		return
 	}
 
@@ -275,7 +273,7 @@ func (s *Server) createUploadSessionHandler(w http.ResponseWriter, r *http.Reque
 		s.removeSession(sess.ID)
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Could not create upload spool file", "error", err)
-		http.Error(w, "Could not create upload session", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgSessionFailed)
 		return
 	}
 	_ = f.Close()
@@ -319,19 +317,19 @@ func (s *Server) openSession(w http.ResponseWriter, r *http.Request) (*uploadSes
 
 	id := vars["id"]
 	if !sessionIDPattern.MatchString(id) {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return nil, false
 	}
 
 	sess, err := s.loadSession(id)
 	if err != nil || sess.ID != id || sess.Filename != sanitize(vars["filename"]) {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return nil, false
 	}
 
 	if time.Since(sess.CreatedAt) > sessionTTL {
 		s.removeSession(id)
-		http.Error(w, "This upload session has expired", http.StatusGone)
+		s.httpError(w, r, http.StatusGone, msgSessionExpired)
 		return nil, false
 	}
 
@@ -351,7 +349,7 @@ func (s *Server) headUploadSessionHandler(w http.ResponseWriter, r *http.Request
 
 	info, err := os.Stat(part)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return
 	}
 
@@ -385,13 +383,13 @@ func (s *Server) patchUploadSessionHandler(w http.ResponseWriter, r *http.Reques
 	start, end, total, err := parseUploadContentRange(r.Header.Get("Content-Range"))
 	if err != nil {
 		s.metrics.uploadErrors.Add(1)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		s.httpErrorFor(w, r, http.StatusBadRequest, err)
 		return
 	}
 
 	if total != sess.Total {
 		s.metrics.uploadErrors.Add(1)
-		http.Error(w, "Content-Range total does not match the size this session was created for", http.StatusBadRequest)
+		s.httpError(w, r, http.StatusBadRequest, msgSessionMismatch)
 		return
 	}
 
@@ -402,7 +400,7 @@ func (s *Server) patchUploadSessionHandler(w http.ResponseWriter, r *http.Reques
 
 	f, err := os.OpenFile(part, os.O_WRONLY, 0600) //nolint:gosec // id is validated against sessionIDPattern
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		s.httpError(w, r, http.StatusNotFound, msgNotFound)
 		return
 	}
 
@@ -410,7 +408,7 @@ func (s *Server) patchUploadSessionHandler(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		_ = f.Close()
 		s.logger.Error("Could not stat upload spool file", "error", err)
-		http.Error(w, "Could not continue upload", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgSessionContinue)
 		return
 	}
 
@@ -421,7 +419,7 @@ func (s *Server) patchUploadSessionHandler(w http.ResponseWriter, r *http.Reques
 	if start != offset {
 		_ = f.Close()
 		s.setSessionHeaders(w, sess, offset)
-		http.Error(w, fmt.Sprintf("This session is at byte %d", offset), http.StatusConflict)
+		s.httpError(w, r, http.StatusConflict, msgSessionOffset, offset)
 		return
 	}
 
@@ -429,7 +427,7 @@ func (s *Server) patchUploadSessionHandler(w http.ResponseWriter, r *http.Reques
 
 	// Measured per chunk rather than reserved up front: several sessions can
 	// pass the check at creation and only fill the disk as they transfer.
-	if !s.checkTempQuota(w, want) {
+	if !s.checkTempQuota(w, r, want) {
 		_ = f.Close()
 		return
 	}
@@ -437,7 +435,7 @@ func (s *Server) patchUploadSessionHandler(w http.ResponseWriter, r *http.Reques
 	if _, err := f.Seek(offset, io.SeekStart); err != nil {
 		_ = f.Close()
 		s.logger.Error("Could not seek upload spool file", "error", err)
-		http.Error(w, "Could not continue upload", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgSessionContinue)
 		return
 	}
 
@@ -457,14 +455,14 @@ func (s *Server) patchUploadSessionHandler(w http.ResponseWriter, r *http.Reques
 		// 408 rather than 400: the request was well formed and the body was
 		// cut short, which is the one failure a client should simply retry.
 		s.setSessionHeaders(w, sess, offset)
-		http.Error(w, "Chunk did not arrive in full", http.StatusRequestTimeout)
+		s.httpError(w, r, http.StatusRequestTimeout, msgChunkIncomplete)
 		return
 	}
 
 	if err := f.Close(); err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Could not flush upload spool file", "error", err)
-		http.Error(w, "Could not continue upload", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgSessionContinue)
 		return
 	}
 
@@ -485,7 +483,7 @@ func (s *Server) patchUploadSessionHandler(w http.ResponseWriter, r *http.Reques
 func (s *Server) finishUploadSession(w http.ResponseWriter, r *http.Request, sess *uploadSession) {
 	part, _ := s.sessionPaths(sess.ID)
 
-	if err := s.prescan(w, part); err != nil {
+	if err := s.prescan(w, r, part); err != nil {
 		// An infected upload is not worth keeping around to be resumed.
 		s.removeSession(sess.ID)
 		return
@@ -495,7 +493,7 @@ func (s *Server) finishUploadSession(w http.ResponseWriter, r *http.Request, ses
 	if err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Could not read completed upload", "error", err)
-		http.Error(w, "Could not save file", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgSaveFailed)
 		return
 	}
 	defer func() { _ = f.Close() }()
@@ -511,11 +509,11 @@ func (s *Server) finishUploadSession(w http.ResponseWriter, r *http.Request, ses
 	m, err := metadataForHeaders(sess.ContentType, sess.Total, s.randomTokenLength, headers)
 	if err != nil {
 		s.metrics.uploadErrors.Add(1)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		s.httpErrorFor(w, r, http.StatusBadRequest, err)
 		return
 	}
 
-	if !s.checkStorageQuota(w, sess.Total) {
+	if !s.checkStorageQuota(w, r, sess.Total) {
 		return
 	}
 
@@ -526,7 +524,7 @@ func (s *Server) finishUploadSession(w http.ResponseWriter, r *http.Request, ses
 	if err := s.store(r.Context(), uploadToken, sess.Filename, f, sess.ContentType, sess.Total, m, ""); err != nil {
 		s.metrics.uploadErrors.Add(1)
 		s.logger.Error("Error storing completed upload", "error", err)
-		http.Error(w, "Could not save file", http.StatusInternalServerError)
+		s.httpError(w, r, http.StatusInternalServerError, msgSaveFailed)
 		return
 	}
 
