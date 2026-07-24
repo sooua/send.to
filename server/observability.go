@@ -11,8 +11,9 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 )
 
-// Version is the build version, set from cmd at startup.
-var Version = "0.0.0"
+// Version is the build version, set from cmd at startup. The value here is the
+// fallback for anyone embedding the server package without going through cmd.
+var Version = "1.0.0"
 
 // metrics holds the counters exposed on /metrics. Plain atomics rather than a
 // Prometheus client: the exposition format below is all the scrape needs, and
