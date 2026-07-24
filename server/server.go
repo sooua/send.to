@@ -218,6 +218,18 @@ func MaxTempSize(kbytes int64) OptionFn {
 	}
 }
 
+// CacheMaxAge lets downloads be stored by browsers and CDNs for that many
+// seconds. Zero, the default, keeps every download no-store.
+//
+// It applies only to uploads that have no Max-Downloads budget and no
+// server-side encryption; see caching.go for why, and for the cost — a deleted
+// file stays reachable through the cache for up to this long.
+func CacheMaxAge(seconds int) OptionFn {
+	return func(srvr *Server) {
+		srvr.cacheMaxAge = time.Duration(seconds) * time.Second
+	}
+}
+
 // RateLimit set rate limit
 func RateLimit(requests int) OptionFn {
 	return func(srvr *Server) {
@@ -376,6 +388,7 @@ type Server struct {
 	maxStorageSize    int64
 	maxTempSize       int64
 	quota             *storageQuota
+	cacheMaxAge       time.Duration
 	rateLimitRequests int
 	rateLimiter       *ipRateLimiter
 

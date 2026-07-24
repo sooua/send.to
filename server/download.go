@@ -206,6 +206,11 @@ func (s *Server) headHandler(w http.ResponseWriter, r *http.Request) {
 	token := vars["token"]
 	filename := vars["filename"]
 
+	// The caching policy is only relaxed once the upload is known to exist and
+	// to be cacheable; until then every answer is a 404 or a failure, and a
+	// cache must not keep one of those in place of the file.
+	w.Header().Set("Cache-Control", "no-store")
+
 	metadata, err := s.checkMetadata(r.Context(), token, filename)
 
 	if err != nil {
@@ -215,6 +220,11 @@ func (s *Server) headHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	contentType := metadata.ContentType
+
+	if s.serveNotModified(w, r, token, filename, metadata, false) {
+		return
+	}
+
 	contentLength, err := s.storage.Head(r.Context(), token, filename)
 	if s.storage.IsNotExist(err) {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -230,6 +240,7 @@ func (s *Server) headHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", strconv.FormatUint(contentLength, 10))
 	w.Header().Set("Connection", "close")
+	w.Header().Set("Cache-Control", s.cacheControl(metadata))
 	w.Header().Set("X-Remaining-Downloads", remainingDownloads)
 	w.Header().Set("X-Remaining-Days", remainingDays)
 	w.Header().Set("Vary", "Range, Referer, X-Decrypt-Password")
@@ -246,11 +257,23 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 	token := vars["token"]
 	filename := vars["filename"]
 
+	// Relaxed further down, once the upload is known to exist and to be
+	// cacheable. Everything answered before that is an error.
+	w.Header().Set("Cache-Control", "no-store")
+
 	metadata, err := s.checkMetadata(r.Context(), token, filename)
 
 	if err != nil {
 		s.logger.Error("Error metadata", "error", err)
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+
+	password := r.Header.Get("X-Decrypt-Password")
+
+	// Answered before the storage read, so a client that already holds the file
+	// costs the backend nothing at all.
+	if s.serveNotModified(w, r, token, filename, metadata, len(password) > 0) {
 		return
 	}
 
@@ -301,11 +324,9 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, disposition, filename))
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Remaining-Downloads", remainingDownloads)
 	w.Header().Set("X-Remaining-Days", remainingDays)
 
-	password := r.Header.Get("X-Decrypt-Password")
 	reader, err = attachDecryptionReader(reader, password)
 	if err != nil {
 		http.Error(w, "Could not decrypt file", http.StatusInternalServerError)
@@ -319,6 +340,7 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", strconv.FormatUint(contentLength, 10))
+	w.Header().Set("Cache-Control", s.cacheControl(metadata))
 	w.Header().Set("Vary", "Range, Referer, X-Decrypt-Password")
 
 	if rng != nil && rng.ContentRange() != "" {
@@ -349,6 +371,16 @@ func (s *Server) getHandler(w http.ResponseWriter, r *http.Request) {
 	// count. Skipping those too would let anyone bypass Max-Downloads entirely
 	// by always sending `Range: bytes=0-`.
 	if rng != nil && rng.Start > 0 {
+		return
+	}
+
+	// An upload with no Max-Downloads budget has nothing to record. Calling
+	// increaseDownload anyway re-read the metadata object from the backend on
+	// every single download, only to look at one field and return — a third of
+	// the storage round trips a download costs, spent to decide to do nothing.
+	// On S3 that is a billed API call per download of every unlimited file,
+	// which is nearly all of them.
+	if metadata.MaxDownloads == -1 {
 		return
 	}
 

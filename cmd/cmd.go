@@ -238,6 +238,12 @@ var globalFlags = []cli.Flag{
 		Value:   0,
 		EnvVars: []string{"MAX_TEMP_SIZE"},
 	},
+	&cli.IntFlag{
+		Name:    "cache-max-age",
+		Usage:   "seconds browsers and CDNs may keep a download (0 = never cache); ignored for uploads with Max-Downloads or server-side encryption",
+		Value:   0,
+		EnvVars: []string{"CACHE_MAX_AGE"},
+	},
 	&cli.StringFlag{
 		Name:    "lets-encrypt-hosts",
 		Usage:   "host1, host2",
@@ -452,6 +458,10 @@ func New() *Cmd {
 
 		if v := c.Int64("max-temp-size"); v > 0 {
 			options = append(options, server.MaxTempSize(v))
+		}
+
+		if v := c.Int("cache-max-age"); v > 0 {
+			options = append(options, server.CacheMaxAge(v))
 		}
 
 		if v := c.Int("rate-limit"); v > 0 {
