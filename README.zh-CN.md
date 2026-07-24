@@ -68,7 +68,7 @@ curl https://send.to/aB3cD4eF/build.tar.gz -o build.tar.gz
 | **安全加固** | 严格 CSP、COOP/CORP、HSTS、slow-loris 超时、常数时间密码比较、按 IP 限流 |
 | **优雅关闭** | SIGINT/SIGTERM → `Shutdown(ctx)` → 正在进行的上传完整收尾 |
 | **JSON API** | 带 `Accept: application/json` 即返回下载链接、删除链接、大小、过期时间 |
-| **可观测性** | `/health`（JSON）与 `/metrics`（Prometheus 文本格式） |
+| **可观测性** | 公开的 `/health`（JSON），以及只绑回环的内部监听器上的 `/metrics` |
 | **现代 Web UI** | Astro 5 + React 19 + Tailwind 4：多文件队列、粘贴上传、单文件 ETA、失败重试、有效期 / 下载次数 / 加密密码选项、二维码，以及保存删除链接的本地上传历史 |
 
 ---
@@ -288,7 +288,7 @@ AES-256-GCM，64 KiB 分块，分块计数器和末块标记都折进 nonce，�
 | `PUT`    | `/{filename}/virustotal`            | 上传到 VirusTotal（需鉴权 + 限流） |
 | `GET`    | `/owner/files`                      | 列出这个 owner token 的全部上传 |
 | `GET`    | `/health` · `/health.html`          | 健康检查（`Accept: application/json` 返回 JSON） |
-| `GET`    | `/metrics`                          | Prometheus 指标              |
+| `GET`    | `/metrics`                          | Prometheus 指标 —— **只在内部监听器上**，见下 |
 | `GET`    | `/qr?url=`                          | 生成本站分享链接的二维码 PNG |
 
 ### 请求头 / 响应头
@@ -572,6 +572,26 @@ Web UI 的 `/api-docs` 页面有实时 API 参考。
   续传上传同样只支持单实例：会话的临时文件在本地磁盘上，在一个副本上开的会话没法
   在另一个副本上续。请用单实例，或者用 sticky session + 共享临时卷。
 
+### 内部监听器
+
+`/metrics` **不在**公开监听器上。它在第二个 server 上，默认绑 `127.0.0.1:6060`；
+开了 `--profiler` 时 pprof 也挂在同一个地方：
+
+| | |
+|---|---|
+| `--profile-listener` / `PROFILE_LISTENER` | 内部监听器的绑定地址 |
+| `--profiler` / `PROFILER` | 额外挂上 `/debug/pprof/` |
+
+单看每个计数器都不算机密，但合起来能让陌生人知道实例有多满、限流多久触发一次
+——而触发限流的往往正是他自己。`/health` 保持公开，因为负载均衡要从外面探活。
+
+这两个参数互相独立。以前设了 `--profile-listener` 会隐含开启 `--profiler`，那是
+监听器上只有 pprof 时的写法；现在为了让采集器能抓而把地址从回环挪开，绝不能顺带
+把「能 dump 出上传文件内容的堆」一起公开。
+
+Docker 里默认地址别的容器访问不到。要采集就设 `PROFILE_LISTENER=0.0.0.0:6060`，
+把采集器放同一个 network，并且**不要**把这个端口 publish 出去。
+
 `/metrics` 暴露了 `sendto_storage_used_bytes`、`sendto_storage_limit_bytes`、
 `sendto_temp_used_bytes`、`sendto_temp_limit_bytes` —— 该对这些做告警，等到 507
 出现时已经晚了。
@@ -617,7 +637,7 @@ files.example.com {
 - [ ] 不允许匿名上传的实例打开 Basic Auth。
 - [ ] 存储卷挂在有配额的分区上。
 - [ ] 监控 `HEALTHCHECK` 状态（`docker ps`）或定期打 `/health`。
-- [ ] 采集 `/metrics`（上传数、下载数、字节数、429 次数、过期清理数）。
+- [ ] 从内部监听器采集 `/metrics`（上传数、下载数、字节数、429 次数、过期清理数）。
 - [ ] 把 `TEMP_PATH` 放在磁盘路径上 —— 没有 `Content-Length` 的上传，以及开启
       ClamAV 预扫描时的所有上传，都会先落盘到这里。compose 已把它指向数据卷，
       因为容器里的 `/tmp` 是很小的 tmpfs。

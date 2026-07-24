@@ -43,6 +43,10 @@ services:
       MAX_STORAGE_SIZE: "${MAX_STORAGE_SIZE:-0}" # total stored, KB, 0 = unlimited
       MAX_TEMP_SIZE: "${MAX_TEMP_SIZE:-0}"       # spool for uploads in progress, KB
       PER_IP_UPLOAD_QUOTA: "${PER_IP_UPLOAD_QUOTA:-0}" # KB/hour per source IP, 0 = unlimited
+
+      # /metrics lives here, not on the public listener. Reachable only from
+      # inside this compose network — do not add it to `ports:`.
+      PROFILE_LISTENER: "${PROFILE_LISTENER:-0.0.0.0:6060}"
       CACHE_MAX_AGE: "${CACHE_MAX_AGE:-0}"       # seconds a CDN may keep a download, 0 = never
       RATE_LIMIT: "${RATE_LIMIT:-0}"             # req/min per IP, 0 = off
       PURGE_DAYS: "${PURGE_DAYS:-30}"

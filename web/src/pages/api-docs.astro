@@ -575,7 +575,10 @@ import CodeBlock from "../components/CodeBlock.astro";
                 <tr class="border-b border-border">
                   <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>
                   <td class="px-4 py-2 font-mono text-xs">/metrics</td>
-                  <td class="px-4 py-2">Prometheus text exposition format</td>
+                  <td class="px-4 py-2"
+                    >Prometheus text exposition format. Served on the operator's internal listener
+                    (127.0.0.1:6060 by default), not on this public one.</td
+                  >
                 </tr>
                 <tr>
                   <td class="px-4 py-2 font-mono text-xs text-accent">GET</td>

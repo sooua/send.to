@@ -68,7 +68,7 @@ One static Go binary. One 52 MB Docker image. No database. No account. Your file
 | **Hardened** | Strict CSP, COOP/CORP, HSTS, slow-loris timeouts, constant-time auth compare, per-IP rate limiting |
 | **Graceful shutdown** | SIGINT/SIGTERM → `Shutdown(ctx)` → in-flight uploads complete |
 | **JSON API** | `Accept: application/json` returns url, delete url, size, expiry |
-| **Observability** | `/health` (JSON) and `/metrics` (Prometheus text format) |
+| **Observability** | public `/health` (JSON), plus `/metrics` on a loopback-bound internal listener |
 | **Modern web UI** | Astro 5 + React 19 + Tailwind 4: multi-file queue, paste-to-upload, per-file ETA, retry, expiry / download-limit / password controls, QR codes, and a local upload history that keeps your delete links |
 
 ---
@@ -295,7 +295,7 @@ file whose fragment was lost.
 | `PUT`  | `/{filename}/virustotal`           | VirusTotal submission (auth + rate limited) |
 | `GET`  | `/owner/files`                     | List this owner token's uploads |
 | `GET`  | `/health` · `/health.html`         | Health check (JSON on `Accept: application/json`) |
-| `GET`  | `/metrics`                         | Prometheus counters             |
+| `GET`  | `/metrics`                         | Prometheus counters — **internal listener only**, see below |
 | `GET`  | `/qr?url=`                         | QR code PNG for a share link on this host |
 
 ### Headers
@@ -608,6 +608,29 @@ Two properties to know before relying on them:
   cannot be continued on another. Use one instance, or a sticky-session
   balancer with a shared spool volume.
 
+### The internal listener
+
+`/metrics` is **not** on the public listener. It sits on a second server bound
+to `127.0.0.1:6060` by default, together with pprof when `--profiler` is set:
+
+| | |
+|---|---|
+| `--profile-listener` / `PROFILE_LISTENER` | Bind address of the internal listener |
+| `--profiler` / `PROFILER` | Also mount `/debug/pprof/` there |
+
+The counters are not secrets one by one, but together they tell a stranger how
+full the instance is and how often its limits are biting, which is
+reconnaissance for whoever is causing that. `/health` stays public, because a
+load balancer probes it from outside.
+
+The two flags are independent. `--profile-listener` used to imply `--profiler`,
+from when the listener carried nothing else; moving the address off loopback so
+a scraper can reach it must not also publish heap dumps of upload contents.
+
+In Docker the default is unreachable from another container. Set
+`PROFILE_LISTENER=0.0.0.0:6060`, put the scraper on the same network, and do
+**not** publish that port.
+
 `/metrics` exposes `sendto_storage_used_bytes`, `sendto_storage_limit_bytes`,
 `sendto_temp_used_bytes` and `sendto_temp_limit_bytes`, which is what to alert
 on — a 507 is the point at which it is already too late.
@@ -653,7 +676,7 @@ Or automatic Let's Encrypt:
 - [ ] Enable Basic Auth on instances that must not accept anonymous uploads.
 - [ ] Mount the storage volume on a partition with a quota.
 - [ ] Monitor the `HEALTHCHECK` status (`docker ps`) or poll `/health`.
-- [ ] Scrape `/metrics` (uploads, downloads, bytes, 429s, expired purges).
+- [ ] Scrape `/metrics` on the internal listener (uploads, downloads, bytes, 429s, expired purges).
 - [ ] Keep `TEMP_PATH` on a disk-backed path — uploads without a
       `Content-Length`, and every upload when the ClamAV prescan is on, are
       spooled there first. The compose file points it at the data volume
