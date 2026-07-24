@@ -47,7 +47,7 @@ var globalFlags = []cli.Flag{
 	// hostnames
 	&cli.StringFlag{
 		Name:    "profile-listener",
-		Usage:   "127.0.0.1:6060",
+		Usage:   "bind address for the internal listener serving /metrics, and pprof with --profiler (default 127.0.0.1:6060)",
 		Value:   "",
 		EnvVars: []string{"PROFILE_LISTENER"},
 	},
@@ -363,10 +363,13 @@ func New() *Cmd {
 			options = append(options, server.TLSListener(v, false))
 		}
 
-		// Setting an explicit profiler address implies wanting the profiler;
-		// previously --profile-listener was accepted and then ignored.
+		// Only the address. It used to imply --profiler as well, from when the
+		// listener existed for pprof alone; now that it also carries /metrics,
+		// that implication would hand pprof — and with it heap dumps of upload
+		// contents — to anyone who moved the address off loopback so a scraper
+		// could reach it.
 		if v := c.String("profile-listener"); v != "" {
-			options = append(options, server.ProfileListener(v), server.EnableProfiler())
+			options = append(options, server.ProfileListener(v))
 		}
 
 		if v := c.String("web-path"); v != "" {

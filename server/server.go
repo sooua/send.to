@@ -127,7 +127,9 @@ func TLSListener(s string, t bool) OptionFn {
 
 }
 
-// ProfileListener sets profile listener
+// ProfileListener sets the bind address of the internal listener, which serves
+// /metrics and — with EnableProfiler — pprof. Defaults to loopback, so nothing
+// here is reachable from outside the host unless an operator says so.
 func ProfileListener(s string) OptionFn {
 	return func(srvr *Server) {
 		srvr.ProfileListenerString = s
@@ -661,27 +663,28 @@ func (s *Server) Run() {
 		}
 	}
 
-	if s.profilerEnabled {
-		listening = true
-
-		profileAddr := s.ProfileListenerString
-		if profileAddr == "" {
-			profileAddr = "127.0.0.1:6060"
-		}
-
-		pprofSrv := &http.Server{
-			Addr:              profileAddr,
-			ReadHeaderTimeout: 10 * time.Second,
-		}
-		servers = append(servers, pprofSrv)
-
-		go func() {
-			s.logger.Info("Profiler listening", "addr", profileAddr)
-			if err := pprofSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				s.logger.Error("Profiler server error", "error", err)
-			}
-		}()
+	// The internal listener carries what operators need and visitors must not
+	// have: /metrics, and pprof when --profiler is on. It binds loopback unless
+	// told otherwise, so the default is unreachable from outside the host even
+	// when the public listener is on 0.0.0.0.
+	internalAddr := s.ProfileListenerString
+	if internalAddr == "" {
+		internalAddr = "127.0.0.1:6060"
 	}
+
+	internalSrv := &http.Server{
+		Addr:              internalAddr,
+		Handler:           s.internalHandler(),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	servers = append(servers, internalSrv)
+
+	go func() {
+		s.logger.Info("Internal listener started", "addr", internalAddr, "profiler", s.profilerEnabled)
+		if err := internalSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			s.logger.Error("Internal listener error", "error", err)
+		}
+	}()
 
 	r := mux.NewRouter()
 
@@ -732,9 +735,10 @@ func (s *Server) Run() {
 	// is a read of the caller's own data rather than a public listing.
 	r.HandleFunc("/owner/files", s.basicAuthHandler(s.rateLimit(http.HandlerFunc(s.ownerFilesHandler)))).Methods("GET")
 
+	// /health stays public: a load balancer probes it from outside. /metrics
+	// does not — see internalHandler.
 	r.HandleFunc("/health.html", s.healthHandler).Methods("GET")
 	r.HandleFunc("/health", s.healthHandler).Methods("GET")
-	r.HandleFunc("/metrics", s.metricsHandler).Methods("GET")
 	r.HandleFunc("/qr", s.rateLimit(http.HandlerFunc(s.qrHandler))).Methods("GET")
 	r.HandleFunc("/", s.viewHandler).Methods("GET")
 

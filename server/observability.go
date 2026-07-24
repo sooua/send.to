@@ -60,6 +60,32 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(body)
 }
 
+// internalHandler is what the internal listener serves.
+//
+// /metrics used to sit on the public router, unauthenticated and unmetered.
+// The counters are not secrets, but together they tell a stranger how full the
+// instance is, how often uploads are being refused and when the limits are
+// biting — which is reconnaissance for whoever is doing the refusing — and the
+// endpoint itself was the one route on the server with no rate limit at all.
+//
+// pprof is mounted only with --profiler because it can dump the heap, which on
+// this server means upload contents.
+func (s *Server) internalHandler() http.Handler {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/metrics", s.metricsHandler)
+	mux.HandleFunc("/health", s.healthHandler)
+
+	if s.profilerEnabled {
+		// net/http/pprof registers itself on DefaultServeMux from its init,
+		// so mounting that prefix is what turns the blank import into a
+		// reachable endpoint.
+		mux.Handle("/debug/pprof/", http.DefaultServeMux)
+	}
+
+	return mux
+}
+
 // metricsHandler exposes counters in Prometheus text exposition format.
 func (s *Server) metricsHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
