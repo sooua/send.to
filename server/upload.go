@@ -381,9 +381,10 @@ func (s *Server) store(ctx context.Context, token, filename string, reader io.Re
 	}
 
 	// Encryption changes the byte count (PGP framing plus armor expansion)
-	// and the ciphertext length is not known up front. Backends that verify
-	// the declared length — Storj aborts the upload on a mismatch — treat 0
-	// as "stream until EOF".
+	// and the ciphertext length is not known up front. Neither shipped
+	// backend reads this value, but the interface promises it, and a backend
+	// that does verify it would abort on the mismatch; 0 is the agreed
+	// "stream until EOF".
 	storedLength := uint64(contentLength)
 	if m.Encrypted {
 		storedLength = 0

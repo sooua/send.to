@@ -13,7 +13,8 @@ import (
 // ErrUsageUnsupported is returned by Usage on a backend that cannot count what
 // it holds without an unreasonable number of API calls. A total-size quota
 // cannot be enforced against such a backend, and the server refuses to start
-// rather than pretend the limit is in force.
+// rather than pretend the limit is in force. Both shipped backends can count;
+// this exists so the next one that cannot has to say so.
 var ErrUsageUnsupported = errors.New("this storage backend cannot report how much it holds")
 
 type Range struct {

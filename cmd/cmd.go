@@ -13,7 +13,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/sooua/send.to/server"
 	"github.com/urfave/cli/v2"
-	"google.golang.org/api/googleapi"
 )
 
 // Version is inject at build time
@@ -122,7 +121,7 @@ var globalFlags = []cli.Flag{
 	},
 	&cli.StringFlag{
 		Name:    "provider",
-		Usage:   "s3|gdrive|local",
+		Usage:   "local|s3",
 		Value:   "",
 		EnvVars: []string{"PROVIDER"},
 	},
@@ -165,36 +164,6 @@ var globalFlags = []cli.Flag{
 		Name:    "s3-path-style",
 		Usage:   "Forces path style URLs, required for Minio.",
 		EnvVars: []string{"S3_PATH_STYLE"},
-	},
-	&cli.StringFlag{
-		Name:    "gdrive-client-json-filepath",
-		Usage:   "",
-		Value:   "",
-		EnvVars: []string{"GDRIVE_CLIENT_JSON_FILEPATH"},
-	},
-	&cli.StringFlag{
-		Name:    "gdrive-local-config-path",
-		Usage:   "",
-		Value:   "",
-		EnvVars: []string{"GDRIVE_LOCAL_CONFIG_PATH"},
-	},
-	&cli.IntFlag{
-		Name:    "gdrive-chunk-size",
-		Usage:   "",
-		Value:   googleapi.DefaultUploadChunkSize / 1024 / 1024,
-		EnvVars: []string{"GDRIVE_CHUNK_SIZE"},
-	},
-	&cli.StringFlag{
-		Name:    "storj-access",
-		Usage:   "Access for the project",
-		Value:   "",
-		EnvVars: []string{"STORJ_ACCESS"},
-	},
-	&cli.StringFlag{
-		Name:    "storj-bucket",
-		Usage:   "Bucket to use within the project",
-		Value:   "",
-		EnvVars: []string{"STORJ_BUCKET"},
 	},
 	&cli.IntFlag{
 		Name:    "rate-limit",
@@ -548,30 +517,6 @@ func New() *Cmd {
 			} else if bucket := c.String("bucket"); bucket == "" {
 				return errors.New("bucket not set")
 			} else if store, err := storage.NewS3Storage(c.Context, accessKey, secretKey, bucket, purgeDays, c.String("s3-region"), c.String("s3-endpoint"), c.Bool("s3-no-multipart"), c.Bool("s3-path-style"), logger); err != nil {
-				return err
-			} else {
-				options = append(options, server.UseStorage(store))
-			}
-		case "gdrive":
-			chunkSize := c.Int("gdrive-chunk-size") * 1024 * 1024
-
-			if clientJSONFilepath := c.String("gdrive-client-json-filepath"); clientJSONFilepath == "" {
-				return errors.New("gdrive-client-json-filepath not set")
-			} else if localConfigPath := c.String("gdrive-local-config-path"); localConfigPath == "" {
-				return errors.New("gdrive-local-config-path not set")
-			} else if basedir := c.String("basedir"); basedir == "" {
-				return errors.New("basedir not set")
-			} else if store, err := storage.NewGDriveStorage(c.Context, clientJSONFilepath, localConfigPath, basedir, chunkSize, logger); err != nil {
-				return err
-			} else {
-				options = append(options, server.UseStorage(store))
-			}
-		case "storj":
-			if access := c.String("storj-access"); access == "" {
-				return errors.New("storj-access not set")
-			} else if bucket := c.String("storj-bucket"); bucket == "" {
-				return errors.New("storj-bucket not set")
-			} else if store, err := storage.NewStorjStorage(c.Context, access, bucket, purgeDays, logger); err != nil {
 				return err
 			} else {
 				options = append(options, server.UseStorage(store))

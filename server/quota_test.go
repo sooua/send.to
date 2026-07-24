@@ -326,8 +326,9 @@ func TestStorageQuotaKeepsItsEstimateWhenReseedingFails(t *testing.T) {
 	}
 }
 
-// unsupportedUsageStorage stands in for Google Drive or Storj: everything else
-// works, but it cannot say how much it holds.
+// unsupportedUsageStorage is a backend where everything else works but which
+// cannot say how much it holds. Neither shipped backend is like that; this
+// guards the contract for the next one that is.
 type unsupportedUsageStorage struct {
 	storage.Storage
 }
