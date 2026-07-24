@@ -307,12 +307,17 @@ file whose fragment was lost.
 | `X-Owner-Token`        | Record the upload in this owner's server-side list  |
 | `X-Encrypt-Password`   | Server encrypts payload (OpenPGP AES-256)           |
 | `X-Decrypt-Password`   | Provide password on download                        |
+| `If-None-Match`        | Skip the transfer if you already hold this `ETag`   |
+| `Accept-Language`      | Language for error messages (`en`, `zh`, `ja`)      |
 
 | Response header        | Meaning                                             |
 | ---------------------- | --------------------------------------------------- |
 | `X-Url-Delete`         | Authenticated URL to `DELETE` this upload           |
 | `X-Remaining-Days`     | Days until auto-expiry                              |
 | `X-Remaining-Downloads`| Downloads remaining under the cap                   |
+| `ETag`                 | Validator for the stored bytes; stable for the upload's life |
+| `Cache-Control`        | `no-store` unless the instance opted into caching   |
+| `Content-Language`     | Language the error body was written in              |
 
 ### Resumable uploads
 
@@ -476,6 +481,47 @@ A multipart `POST` returns `{"files": [ … ]}` with one object per file.
 - When the budget or `Max-Days` runs out the object is **deleted from storage**
   immediately, rather than waiting for `--purge-days`.
 
+### Caching and CDNs
+
+An upload never changes once stored, so every download carries an `ETag` and
+answers `304 Not Modified` to anyone that sends it back in `If-None-Match`.
+That costs an operator nothing and is always on — a client holding the file
+pays for neither the body nor the storage read.
+
+Whether a *cache* may keep the response is a different question, and the answer
+is no by default. `--cache-max-age` turns it on:
+
+```
+CACHE_MAX_AGE=600 ./send.to --provider local --basedir /data
+```
+
+Even then, only uploads where caching cannot change behaviour become
+`public, max-age=…, immutable`:
+
+- **`Max-Downloads` uploads never become cacheable.** The budget counts
+  completed downloads, and a cached copy is served without the origin knowing
+  it happened.
+- **Server-side encrypted uploads never become cacheable.** They are decrypted
+  per request against `X-Decrypt-Password`, and a cache mishandling that would
+  hand one visitor's plaintext to another.
+- The lifetime is clamped to the file's own `Max-Days`, so a cached copy cannot
+  outlive the link.
+- Errors — including 404s — are always `no-store`, so a cache cannot keep a
+  transient failure in place of the file.
+
+The cost you accept in exchange: **a deleted file stays reachable through the
+cache for up to `CACHE_MAX_AGE`**, and downloads served by the cache do not
+appear in `/metrics`. Pick the value with that in mind; ten minutes buys most
+of the benefit at a fraction of the exposure.
+
+### Languages
+
+Error bodies follow `Accept-Language`, in English, Chinese and Japanese — the
+same three the web UI ships. A request without the header gets English, so
+existing scripts see no change. Errors that carry internal detail (storage
+failures, scanner problems) stay in English on purpose: they are for whoever
+reads the logs.
+
 A live reference is rendered in the web UI at `/api-docs`.
 
 ---
@@ -493,9 +539,10 @@ Every CLI flag has an environment-variable equivalent (`--listener` ↔ `LISTENE
 | `--max-upload-size`               | `0`         | KB per upload; `0` = unlimited                |
 | `--max-storage-size`              | `0`         | KB an instance will hold in total; `0` = unlimited |
 | `--max-temp-size`                 | `0`         | KB of spool space for uploads in progress; `0` = unlimited |
+| `--cache-max-age`                 | `0`         | Seconds a browser or CDN may keep a download; `0` = never cache |
 | `--rate-limit`                    | `0`         | Requests / minute / IP, shared across all routes |
 | `--temp-path` / `TEMP_PATH`       | system temp | Spool dir for uploads; must be disk-backed    |
-| `--purge-days`                    | `0`         | Delete uploads older than N days              |
+| `--purge-days`                    | `0`         | Delete uploads older than N days (all four providers) |
 | `--shutdown-timeout`              | `30s`       | Grace period for in-flight requests on quit   |
 | `--http-auth-user` / `_pass`      | empty       | HTTP Basic Auth credentials                   |
 | `--cors-domains`                  | empty       | Comma-separated Allow-Origin list             |

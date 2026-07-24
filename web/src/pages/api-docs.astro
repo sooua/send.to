@@ -102,6 +102,20 @@ import CodeBlock from "../components/CodeBlock.astro";
           </li>
           <li>
             <a
+              href="#caching"
+              class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary"
+              data-i18n="api.caching">Caching</a
+            >
+          </li>
+          <li>
+            <a
+              href="#languages"
+              class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary"
+              data-i18n="api.languages">Languages</a
+            >
+          </li>
+          <li>
+            <a
               href="#errors"
               class="block rounded-md px-3 py-1.5 text-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-light hover:text-primary"
               data-i18n="api.errors">Error Codes</a
@@ -674,9 +688,19 @@ import CodeBlock from "../components/CodeBlock.astro";
                       <td class="px-4 py-2 font-mono text-xs">X-Decrypt-Password</td>
                       <td class="px-4 py-2">Decrypt an encrypted file</td>
                     </tr>
-                    <tr>
+                    <tr class="border-b border-border">
                       <td class="px-4 py-2 font-mono text-xs">Range</td>
                       <td class="px-4 py-2">Resumable download (e.g. bytes=0-1023)</td>
+                    </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">If-None-Match</td>
+                      <td class="px-4 py-2"
+                        >Skip the transfer if you already hold this ETag (304)</td
+                      >
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-2 font-mono text-xs">Accept-Language</td>
+                      <td class="px-4 py-2">Language for error messages (en, zh, ja)</td>
                     </tr>
                   </tbody>
                 </table>
@@ -775,16 +799,94 @@ import CodeBlock from "../components/CodeBlock.astro";
                       <td class="px-4 py-2 font-mono text-xs">Accept-Ranges</td>
                       <td class="px-4 py-2">Indicates range request support (bytes)</td>
                     </tr>
-                    <tr>
+                    <tr class="border-b border-border">
                       <td class="px-4 py-2 font-mono text-xs">Content-Range</td>
                       <td class="px-4 py-2"
                         >Byte range returned for partial content (206 responses)</td
                       >
                     </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">ETag</td>
+                      <td class="px-4 py-2"
+                        >Validator for the stored bytes; send it back in If-None-Match</td
+                      >
+                    </tr>
+                    <tr class="border-b border-border">
+                      <td class="px-4 py-2 font-mono text-xs">Cache-Control</td>
+                      <td class="px-4 py-2">no-store unless the server opted into caching</td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-2 font-mono text-xs">Content-Language</td>
+                      <td class="px-4 py-2">Language an error body was written in</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- Caching -->
+        <section id="caching" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.caching">
+            Caching
+          </h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.cachingDesc">
+            A stored file never changes, so every download carries an ETag and answers 304 Not
+            Modified when you send it back in If-None-Match. Whether a browser or CDN may keep the
+            response is up to the server operator, via CACHE_MAX_AGE, and it is off by default.
+          </p>
+
+          <div class="mb-4 overflow-x-auto rounded-lg border border-border bg-surface p-4">
+            <pre
+              class="font-mono text-xs text-muted"><code>curl -sD - -o /dev/null https://send.to/aB3cD4eF/report.pdf
+# ETag: "9f2c…"
+# Cache-Control: public, max-age=600, immutable
+
+curl -sD - -o /dev/null -H 'If-None-Match: "9f2c…"' https://send.to/aB3cD4eF/report.pdf
+# HTTP/1.1 304 Not Modified</code></pre>
+          </div>
+
+          <ul class="space-y-2 text-sm text-muted">
+            <li class="flex gap-2">
+              <span class="text-accent">-</span>
+              <span data-i18n="api.cachingLimited"
+                >Files with Max-Downloads are never cacheable — a cached copy is served without the
+                origin counting it.</span
+              >
+            </li>
+            <li class="flex gap-2">
+              <span class="text-accent">-</span>
+              <span data-i18n="api.cachingEncrypted"
+                >Server-side encrypted files are never cacheable — they are decrypted per request
+                against a password header.</span
+              >
+            </li>
+            <li class="flex gap-2">
+              <span class="text-accent">-</span>
+              <span data-i18n="api.cachingDelete"
+                >When caching is on, a deleted file stays reachable through the cache until its
+                max-age runs out.</span
+              >
+            </li>
+          </ul>
+        </section>
+
+        <!-- Languages -->
+        <section id="languages" class="animate-on-scroll">
+          <h2 class="mb-4 font-mono text-xl font-semibold text-primary" data-i18n="api.languages">
+            Languages
+          </h2>
+          <p class="mb-4 text-sm text-muted" data-i18n="api.languagesDesc">
+            Error messages follow Accept-Language, in English, Chinese and Japanese. A request
+            without the header gets English, and the response says which language it used in
+            Content-Language.
+          </p>
+
+          <div class="overflow-x-auto rounded-lg border border-border bg-surface p-4">
+            <pre
+              class="font-mono text-xs text-muted"><code>curl -H 'Accept-Language: zh-CN' https://send.to/nosuchtoken/x.bin
+# 未找到</code></pre>
           </div>
         </section>
 

@@ -252,6 +252,18 @@ export const translations: Record<Lang, Record<string, string>> = {
     "api.responseHeadersDesc": "Headers returned by the server in upload and download responses.",
     "api.uploadResponseHeaders": "Upload Response",
     "api.downloadResponseHeaders": "Download Response",
+    "api.caching": "Caching",
+    "api.cachingDesc":
+      "A stored file never changes, so every download carries an ETag and answers 304 Not Modified when you send it back in If-None-Match. Whether a browser or CDN may keep the response is up to the server operator, via CACHE_MAX_AGE, and it is off by default.",
+    "api.cachingLimited":
+      "Files with Max-Downloads are never cacheable — a cached copy is served without the origin counting it.",
+    "api.cachingEncrypted":
+      "Server-side encrypted files are never cacheable — they are decrypted per request against a password header.",
+    "api.cachingDelete":
+      "When caching is on, a deleted file stays reachable through the cache until its max-age runs out.",
+    "api.languages": "Languages",
+    "api.languagesDesc":
+      "Error messages follow Accept-Language, in English, Chinese and Japanese. A request without the header gets English, and the response says which language it used in Content-Language.",
     "api.errors": "Error Codes",
     "api.errorsDesc": "Common HTTP status codes returned by the API.",
     // Code block titles
@@ -564,6 +576,15 @@ export const translations: Record<Lang, Record<string, string>> = {
     "api.responseHeadersDesc": "服务器在上传和下载响应中返回的头信息。",
     "api.uploadResponseHeaders": "上传响应",
     "api.downloadResponseHeaders": "下载响应",
+    "api.caching": "缓存",
+    "api.cachingDesc":
+      "文件存好后不再改变，因此每个下载响应都带 ETag；用 If-None-Match 带回来时返回 304 Not Modified。浏览器或 CDN 是否可以保存响应由服务端通过 CACHE_MAX_AGE 决定，默认关闭。",
+    "api.cachingLimited": "带 Max-Downloads 的文件永远不可缓存 —— 缓存命中时源站不会计入这次下载。",
+    "api.cachingEncrypted": "服务端加密的文件永远不可缓存 —— 它们要按请求携带的密码头逐次解密。",
+    "api.cachingDelete": "开启缓存后，已删除的文件在 max-age 到期前仍可能从缓存中取到。",
+    "api.languages": "语言",
+    "api.languagesDesc":
+      "错误信息按 Accept-Language 返回中文、英文或日文。不带该请求头时返回英文，响应用 Content-Language 说明实际使用的语言。",
     "api.errors": "错误码",
     "api.errorsDesc": "API 返回的常见 HTTP 状态码。",
     // Code block titles
@@ -882,6 +903,18 @@ export const translations: Record<Lang, Record<string, string>> = {
     "api.responseHeadersDesc": "アップロードおよびダウンロードレスポンスでサーバーが返すヘッダー。",
     "api.uploadResponseHeaders": "アップロードレスポンス",
     "api.downloadResponseHeaders": "ダウンロードレスポンス",
+    "api.caching": "キャッシュ",
+    "api.cachingDesc":
+      "保存されたファイルは変更されないため、すべてのダウンロードに ETag が付き、If-None-Match で送り返すと 304 Not Modified を返します。ブラウザや CDN がレスポンスを保持してよいかはサーバー運用者が CACHE_MAX_AGE で決めるもので、既定では無効です。",
+    "api.cachingLimited":
+      "Max-Downloads 付きのファイルはキャッシュ対象になりません。キャッシュから返された分をオリジンは数えられないためです。",
+    "api.cachingEncrypted":
+      "サーバー側で暗号化されたファイルはキャッシュ対象になりません。リクエストごとにパスワードヘッダーで復号するためです。",
+    "api.cachingDelete":
+      "キャッシュを有効にすると、削除したファイルも max-age が切れるまではキャッシュ経由で取得できてしまいます。",
+    "api.languages": "言語",
+    "api.languagesDesc":
+      "エラーメッセージは Accept-Language に従って英語・中国語・日本語で返されます。ヘッダーがなければ英語になり、実際に使われた言語は Content-Language で示されます。",
     "api.errors": "エラーコード",
     "api.errorsDesc": "API が返す一般的な HTTP ステータスコード。",
     // Code block titles

@@ -42,6 +42,7 @@ services:
       MAX_UPLOAD_SIZE: "${MAX_UPLOAD_SIZE:-0}"   # 0 = unlimited, value in KB
       MAX_STORAGE_SIZE: "${MAX_STORAGE_SIZE:-0}" # total stored, KB, 0 = unlimited
       MAX_TEMP_SIZE: "${MAX_TEMP_SIZE:-0}"       # spool for uploads in progress, KB
+      CACHE_MAX_AGE: "${CACHE_MAX_AGE:-0}"       # seconds a CDN may keep a download, 0 = never
       RATE_LIMIT: "${RATE_LIMIT:-0}"             # req/min per IP, 0 = off
       PURGE_DAYS: "${PURGE_DAYS:-30}"
       PURGE_INTERVAL: "${PURGE_INTERVAL:-1}"
