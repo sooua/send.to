@@ -54,7 +54,7 @@ curl https://send.to/aB3cD4eF/build.tar.gz -o build.tar.gz
 | | |
 |---|---|
 | **单一静态二进制** | `CGO_ENABLED=0` 编译，以 `scratch` 镜像 + 非 root UID 10001 运行 |
-| **可插拔存储** | 本地文件系统、S3（含 Minio / DO Spaces）、Google Drive、Storj |
+| **可插拔存储** | 本地文件系统、S3（含 Minio / DO Spaces 及任何 S3 兼容服务） |
 | **端到端加密** | 客户端 AES-256-GCM；密钥藏在 URL fragment 里，永不到达服务器 |
 | **服务端加密** | 通过 `X-Encrypt-Password` 请求头触发 OpenPGP AES-256 加密 |
 | **客户端友好** | 兼容 `curl`、`wget`、HTTPie、PowerShell，或任意 HTTP 客户端 |
@@ -509,7 +509,7 @@ Web UI 的 `/api-docs` 页面有实时 API 参考。
 | ----------------------------------- | --------- | ---------------------------------------------- |
 | `--listener` / `LISTENER`           | `:18080`   | HTTP 监听地址                                  |
 | `--tls-listener` / `TLS_LISTENER`   | 空        | 启用原生 HTTPS                                 |
-| `--provider` / `PROVIDER`           | —         | `local` \| `s3` \| `gdrive` \| `storj`         |
+| `--provider` / `PROVIDER`           | —         | `local` \| `s3`                                |
 | `--basedir` / `BASEDIR`             | —         | `local` 存储后端的数据目录                     |
 | `--max-upload-size`                 | `0`       | 每次上传大小上限（KB）；`0` = 无限             |
 | `--temp-path` / `TEMP_PATH`         | 系统临时目录 | 上传暂存目录，必须是磁盘路径                |
@@ -565,8 +565,8 @@ Web UI 的 `/api-docs` 页面有实时 API 参考。
 
 - **`MAX_STORAGE_SIZE` 是计数器，不是实测值。** 启动时从后端取一次基线，之后在
   内存里累加，因为实测意味着列举整个 bucket。如果有人绕过服务端删文件，它会漂移，
-  重启会重新取基线。`local` 和 `s3` 能统计；`gdrive` 和 `storj` 不能 —— 在这两个
-  后端上配了上限，进程会**拒绝启动**，而不是假装限制生效。
+  重启会重新取基线。自带的两个后端都能统计；换成统计不了的后端，进程会**拒绝
+  启动**，而不是假装限制生效。
 - **三个上限都是单进程范围的。** 负载均衡后面的多个副本各算各的，每个副本的
   per-IP 令牌桶也各自存在内存里，所以请求被分到 N 个副本的客户端就有 N 份配额。
   续传上传同样只支持单实例：会话的临时文件在本地磁盘上，在一个副本上开的会话没法
@@ -657,9 +657,9 @@ git pull
                                     │   VirusTotal   │
                                     └────────┬───────┘
                                              │
-                  ┌──────────────┬───────────┴───────────┬──────────────┐
-                  ▼              ▼                       ▼              ▼
-              本地文件系统    S3 / Minio           Google Drive      Storj
+                              ┌──────────────┴──────────────┐
+                              ▼                             ▼
+                          本地文件系统                   S3 / Minio
 ```
 
 ### 代码结构
@@ -668,7 +668,7 @@ git pull
 .
 ├── cmd/                CLI 参数解析（urfave/cli）
 ├── server/             HTTP 处理器、认证、安全、存储
-│   └── storage/        local | s3 | gdrive | storj 四种后端
+│   └── storage/        local | s3 两种后端
 ├── internal/clamd/     内嵌的 ClamAV 守护进程客户端
 ├── web/                Astro 5 + React 19 前端
 ├── scripts/            deploy.sh · deploy.ps1 · docker.sh 一键脚本
@@ -715,7 +715,7 @@ git pull
 <details>
 <summary><b>文件是否静态加密？</b></summary>
 
-仅当上传方传了 `X-Encrypt-Password` 时才加密（OpenPGP AES-256），否则按原样存储。S3 / Storj 后端可以叠加使用它们自身的服务端加密。
+仅当上传方传了 `X-Encrypt-Password` 时才加密（OpenPGP AES-256），否则按原样存储。用 S3 后端时可以叠加 bucket 自身的服务端加密。
 </details>
 
 <details>
@@ -727,7 +727,7 @@ git pull
 <details>
 <summary><b>如何备份上传的文件？</b></summary>
 
-`local` 后端：备份 `--basedir` 目录即可（`rsync`、ZFS snapshot 等皆可）。S3 / Storj：使用后端自身的复制 / 快照能力。
+`local` 后端：备份 `--basedir` 目录即可（`rsync`、ZFS snapshot 等皆可）。S3：使用 bucket 自身的复制 / 版本控制能力。
 </details>
 
 <details>

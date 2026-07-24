@@ -95,7 +95,7 @@ When filing a bug include:
 
 - send.to version (commit SHA or tag)
 - Operating system and Go version
-- Storage backend (`local`, `s3`, `gdrive`, `storj`)
+- Storage backend (`local`, `s3`)
 - Minimal reproduction steps
 - Expected vs. actual behaviour, including any logs
 

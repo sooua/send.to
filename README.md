@@ -54,7 +54,7 @@ One static Go binary. One 52 MB Docker image. No database. No account. Your file
 | | |
 |---|---|
 | **Single static binary** | `CGO_ENABLED=0`, runs on `scratch` as non-root UID 10001 |
-| **Pluggable storage** | local filesystem, S3 (Minio / DO Spaces), Google Drive, Storj |
+| **Pluggable storage** | local filesystem, S3 (Minio / DO Spaces, and anything S3-compatible) |
 | **End-to-end encryption** | AES-256-GCM on the client; the key rides in the URL fragment and never reaches the server |
 | **Server-side encryption** | OpenPGP AES-256 via `X-Encrypt-Password` header |
 | **Client-friendly** | Works with `curl`, `wget`, HTTPie, PowerShell, any HTTP client |
@@ -534,7 +534,7 @@ Every CLI flag has an environment-variable equivalent (`--listener` ↔ `LISTENE
 | --------------------------------- | ----------- | --------------------------------------------- |
 | `--listener` / `LISTENER`         | `:18080`     | Plain HTTP bind address                       |
 | `--tls-listener` / `TLS_LISTENER` | empty       | Enable native HTTPS                           |
-| `--provider` / `PROVIDER`         | —           | `local` \| `s3` \| `gdrive` \| `storj`        |
+| `--provider` / `PROVIDER`         | —           | `local` \| `s3`                               |
 | `--basedir` / `BASEDIR`           | —           | Storage root for the `local` provider         |
 | `--max-upload-size`               | `0`         | KB per upload; `0` = unlimited                |
 | `--max-storage-size`              | `0`         | KB an instance will hold in total; `0` = unlimited |
@@ -598,9 +598,9 @@ Two properties to know before relying on them:
 - **`MAX_STORAGE_SIZE` is a counter, not a measurement.** It is seeded from the
   backend at startup and then tracked in memory, because measuring means listing
   the bucket. It drifts if files are removed behind the server's back, and a
-  restart re-seeds it. `local` and `s3` can be counted; `gdrive` and `storj`
-  cannot, and an instance configured with a limit on those backends **refuses to
-  start** rather than pretend a limit is in force.
+  restart re-seeds it. Both shipped backends can be counted; a backend that
+  could not would make the instance **refuse to start** rather than pretend a
+  limit is in force.
 - **All of them are per process.** Several replicas behind a load balancer each
   enforce their own total, and each keeps its own per-IP buckets in memory, so a
   client spread across N replicas gets N budgets. Resumable uploads are single-instance for the same reason:
@@ -694,9 +694,9 @@ Graceful shutdown is bounded by `SHUTDOWN_TIMEOUT`, so in-flight uploads up to t
                                     │   VirusTotal   │
                                     └────────┬───────┘
                                              │
-                  ┌──────────────┬───────────┴───────────┬──────────────┐
-                  ▼              ▼                       ▼              ▼
-             local FS         S3 / Minio           Google Drive      Storj
+                              ┌──────────────┴──────────────┐
+                              ▼                             ▼
+                         local FS                     S3 / Minio
 ```
 
 ### Source layout
@@ -705,7 +705,7 @@ Graceful shutdown is bounded by `SHUTDOWN_TIMEOUT`, so in-flight uploads up to t
 .
 ├── cmd/                CLI flag parsing (urfave/cli)
 ├── server/             HTTP handlers, auth, security, storage backends
-│   └── storage/        local | s3 | gdrive | storj
+│   └── storage/        local | s3
 ├── internal/clamd/     Embedded ClamAV daemon client
 ├── web/                Astro 5 + React 19 frontend
 ├── scripts/            deploy.sh · deploy.ps1 · docker.sh  (one-click ops)
@@ -752,7 +752,7 @@ Clients choose per upload via the `Max-Days` and `Max-Downloads` headers. Operat
 <details>
 <summary><b>Are files encrypted at rest?</b></summary>
 
-Only if the uploader sends `X-Encrypt-Password` (OpenPGP AES-256). Otherwise files are stored as-is. For S3 / Storj backends, use their server-side encryption features in addition.
+Only if the uploader sends `X-Encrypt-Password` (OpenPGP AES-256). Otherwise files are stored as-is. On the S3 backend, use the bucket's own server-side encryption in addition.
 </details>
 
 <details>
@@ -764,7 +764,7 @@ Yes. Set `--proxy-path /send` (or `PROXY_PATH=/send`) and point the proxy at the
 <details>
 <summary><b>How do I back up uploads?</b></summary>
 
-For `local` provider: everything is in `--basedir`. Snapshot that directory or use filesystem-level tools (`rsync`, ZFS snapshots, etc.). For S3 / Storj, use the backend's replication / snapshot features.
+For `local` provider: everything is in `--basedir`. Snapshot that directory or use filesystem-level tools (`rsync`, ZFS snapshots, etc.). For S3, use the bucket's replication / versioning features.
 </details>
 
 <details>

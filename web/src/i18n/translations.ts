@@ -127,9 +127,9 @@ export const translations: Record<Lang, Record<string, string>> = {
       "Per-file Max-Days and Max-Downloads. The file — and the link — quietly vanish.",
     "feature.expiry.caption": "default ttl",
     "feature.storage.label": "Storage",
-    "feature.storage.title": "One flag, four backends.",
+    "feature.storage.title": "One flag, either backend.",
     "feature.storage.desc":
-      "Local filesystem for dev, S3 for scale, Google Drive for personal, Storj for decentralized. Swap with a single CLI flag.",
+      "Local filesystem for dev, S3 for scale — Minio, DO Spaces or anything S3-compatible. Swap with a single CLI flag.",
     "feature.hardening.label": "Hardening",
     "feature.hardening.title": "Hardened by default.",
     "feature.hardening.desc":
@@ -177,7 +177,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     "feature.multiUpload": "Upload multiple files at once",
     "feature.resumable": "Resumable downloads via HTTP Range requests",
     "feature.deleteToken": "Delete files with a unique deletion token",
-    "feature.storage": "Multiple storage backends: local, S3, Google Drive, Storj",
+    "feature.storage": "Multiple storage backends: local, S3",
     "feature.virusScan": "Virus scanning with ClamAV and VirusTotal",
     "feature.auth": "HTTP Basic Auth, htpasswd, and IP whitelist/blacklist",
     "feature.tls": "Automatic TLS via Let's Encrypt",
@@ -457,9 +457,9 @@ export const translations: Record<Lang, Record<string, string>> = {
       "每个文件独立设置 Max-Days 和 Max-Downloads。到期后文件和链接一起悄悄消失。",
     "feature.expiry.caption": "默认有效期",
     "feature.storage.label": "存储",
-    "feature.storage.title": "一个参数,四种后端。",
+    "feature.storage.title": "一个参数,两种后端。",
     "feature.storage.desc":
-      "开发用本地文件系统,生产用 S3,个人用 Google Drive,去中心化用 Storj。切换只需一个 CLI 参数。",
+      "开发用本地文件系统,生产用 S3 —— Minio、DO Spaces 或任何 S3 兼容服务。切换只需一个 CLI 参数。",
     "feature.hardening.label": "安全加固",
     "feature.hardening.title": "默认就是生产级安全。",
     "feature.hardening.desc":
@@ -506,7 +506,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     "feature.multiUpload": "一次上传多个文件",
     "feature.resumable": "通过 HTTP Range 请求实现断点续传",
     "feature.deleteToken": "使用唯一删除令牌删除文件",
-    "feature.storage": "多种存储后端：本地、S3、Google Drive、Storj",
+    "feature.storage": "多种存储后端：本地、S3",
     "feature.virusScan": "病毒扫描：支持 ClamAV 和 VirusTotal",
     "feature.auth": "HTTP Basic Auth、htpasswd 和 IP 黑白名单",
     "feature.tls": "通过 Let's Encrypt 自动配置 TLS",
@@ -778,9 +778,9 @@ export const translations: Record<Lang, Record<string, string>> = {
       "ファイルごとに Max-Days と Max-Downloads を設定。ファイルもリンクも静かに消えていきます。",
     "feature.expiry.caption": "デフォルト有効期限",
     "feature.storage.label": "ストレージ",
-    "feature.storage.title": "1 つのフラグで 4 種のバックエンド。",
+    "feature.storage.title": "1 つのフラグで 2 種のバックエンド。",
     "feature.storage.desc":
-      "開発はローカル FS、スケールは S3、個人用は Google Drive、分散型は Storj。CLI フラグ 1 つで切り替え。",
+      "開発はローカル FS、スケールは S3 —— Minio、DO Spaces など S3 互換なら何でも。CLI フラグ 1 つで切り替え。",
     "feature.hardening.label": "セキュリティ強化",
     "feature.hardening.title": "デフォルトで堅牢。",
     "feature.hardening.desc":
@@ -828,7 +828,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     "feature.multiUpload": "複数ファイルの一括アップロード",
     "feature.resumable": "HTTP Range リクエストによるレジューム可能なダウンロード",
     "feature.deleteToken": "一意の削除トークンでファイルを削除",
-    "feature.storage": "複数のストレージバックエンド：ローカル、S3、Google Drive、Storj",
+    "feature.storage": "複数のストレージバックエンド：ローカル、S3",
     "feature.virusScan": "ClamAV と VirusTotal によるウイルススキャン",
     "feature.auth": "HTTP Basic Auth、htpasswd、IP ホワイトリスト/ブラックリスト",
     "feature.tls": "Let's Encrypt による自動 TLS",

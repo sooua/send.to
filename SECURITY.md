@@ -44,7 +44,7 @@ In scope:
 
 Out of scope:
 
-- Vulnerabilities in third-party storage providers (S3, Storj, GDrive)
+- Vulnerabilities in third-party storage providers (S3 and S3-compatible services)
   — report to the upstream vendor
 - DoS via raw resource exhaustion when no `--max-upload-size`,
   `--rate-limit`, or `IPFilter` is configured (these are operator
