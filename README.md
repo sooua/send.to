@@ -539,6 +539,7 @@ Every CLI flag has an environment-variable equivalent (`--listener` ↔ `LISTENE
 | `--max-upload-size`               | `0`         | KB per upload; `0` = unlimited                |
 | `--max-storage-size`              | `0`         | KB an instance will hold in total; `0` = unlimited |
 | `--max-temp-size`                 | `0`         | KB of spool space for uploads in progress; `0` = unlimited |
+| `--per-ip-upload-quota`           | `0`         | KB / hour / IP an uploader may spend; `0` = unlimited |
 | `--cache-max-age`                 | `0`         | Seconds a browser or CDN may keep a download; `0` = never cache |
 | `--rate-limit`                    | `0`         | Requests / minute / IP, shared across all routes |
 | `--temp-path` / `TEMP_PATH`       | system temp | Spool dir for uploads; must be disk-backed    |
@@ -571,6 +572,27 @@ kept for 24 hours by design, so without it anyone can open sessions, send almost
 all of each, and leave the bytes sitting on `TEMP_PATH` — which in the shipped
 compose file is the data volume.
 
+Neither total says anything about *who* filled the instance. One client can
+reach `MAX_STORAGE_SIZE` on its own and leave every other user with a 507, and
+`RATE_LIMIT` does not help: sixty requests a minute is sixty large files a
+minute.
+
+| | |
+|---|---|
+| `PER_IP_UPLOAD_QUOTA` | Kilobytes per hour one source address may upload |
+
+It answers **429 Too Many Requests**, because unlike the totals it refills — as
+a token bucket, continuously, not by resetting on the hour. The declared total
+of a resumable upload is charged when the session is opened and not refunded if
+the session is abandoned, so opening sessions and walking away is not a way
+around it. Keep it above `MAX_UPLOAD_SIZE`; below it, an upload at the permitted
+maximum can never succeed, which the server warns about at startup.
+
+The source address comes from `X-Forwarded-For`/`X-Real-IP` only when the peer
+is loopback or a private range, so a direct client cannot spoof itself a fresh
+budget. Behind a proxy that does not set those headers, every upload shares one
+bucket.
+
 Two properties to know before relying on them:
 
 - **`MAX_STORAGE_SIZE` is a counter, not a measurement.** It is seeded from the
@@ -579,8 +601,9 @@ Two properties to know before relying on them:
   restart re-seeds it. `local` and `s3` can be counted; `gdrive` and `storj`
   cannot, and an instance configured with a limit on those backends **refuses to
   start** rather than pretend a limit is in force.
-- **Both are per process.** Several replicas behind a load balancer each enforce
-  their own total. Resumable uploads are single-instance for the same reason:
+- **All of them are per process.** Several replicas behind a load balancer each
+  enforce their own total, and each keeps its own per-IP buckets in memory, so a
+  client spread across N replicas gets N budgets. Resumable uploads are single-instance for the same reason:
   the session spool lives on local disk, so a session opened on one replica
   cannot be continued on another. Use one instance, or a sticky-session
   balancer with a shared spool volume.

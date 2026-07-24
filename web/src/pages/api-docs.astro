@@ -945,6 +945,14 @@ curl -sD - -o /dev/null -H 'If-None-Match: "9f2c…"' https://send.to/aB3cD4eF/r
                   <td class="px-4 py-2">File exceeds --max-upload-size limit</td>
                 </tr>
                 <tr class="border-b border-border">
+                  <td class="px-4 py-2 font-mono text-xs text-danger">429</td>
+                  <td class="px-4 py-2 font-mono text-xs">Too Many Requests</td>
+                  <td class="px-4 py-2"
+                    >Past the --rate-limit request budget, or past the hourly --per-ip-upload-quota
+                    for this source address</td
+                  >
+                </tr>
+                <tr class="border-b border-border">
                   <td class="px-4 py-2 font-mono text-xs text-danger">500</td>
                   <td class="px-4 py-2 font-mono text-xs">Internal Server Error</td>
                   <td class="px-4 py-2">Storage or processing error</td>
