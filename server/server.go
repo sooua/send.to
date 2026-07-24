@@ -29,6 +29,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"log/slog"
+	"math"
 	"mime"
 	"net/http"
 	_ "net/http/pprof"
@@ -230,6 +231,19 @@ func CacheMaxAge(seconds int) OptionFn {
 	}
 }
 
+// PerIPUploadQuota caps how many kilobytes one source address may upload per
+// hour.
+//
+// --rate-limit counts requests, which is the wrong unit for this: sixty
+// requests a minute is sixty large files a minute, so a single IP can take the
+// whole --max-storage-size for itself and answer every other user with 507.
+// The budget refills continuously rather than resetting on the hour.
+func PerIPUploadQuota(kbPerHour int64) OptionFn {
+	return func(srvr *Server) {
+		srvr.perIPUploadKB = kbPerHour
+	}
+}
+
 // RateLimit set rate limit
 func RateLimit(requests int) OptionFn {
 	return func(srvr *Server) {
@@ -391,6 +405,8 @@ type Server struct {
 	cacheMaxAge       time.Duration
 	rateLimitRequests int
 	rateLimiter       *ipRateLimiter
+	perIPUploadKB     int64
+	uploadBudget      *ipRateLimiter
 
 	shutdownTimeout time.Duration
 
@@ -489,21 +505,22 @@ func (lw *loggingResponseWriter) WriteHeader(code int) {
 	lw.ResponseWriter.WriteHeader(code)
 }
 
-// rateLimiterIdleTTL is how long an idle per-IP bucket is kept before it is
-// evicted. It must be long enough for a full bucket to refill, otherwise
-// eviction would hand an abusive IP a fresh burst allowance.
+// rateLimiterIdleTTL is the floor for how long an idle per-IP bucket is kept
+// before it is evicted. Eviction must never come before the bucket would have
+// refilled anyway, or it would hand an abusive IP a fresh burst allowance.
 const rateLimiterIdleTTL = 10 * time.Minute
 
 // ipRateLimiter provides per-IP rate limiting using token buckets.
 //
-// Entries are evicted after rateLimiterIdleTTL of inactivity; without that the
-// map grows once per distinct source address seen and never shrinks, which a
-// single port scan is enough to turn into unbounded memory growth.
+// Entries are evicted after idleTTL of inactivity; without that the map grows
+// once per distinct source address seen and never shrinks, which a single port
+// scan is enough to turn into unbounded memory growth.
 type ipRateLimiter struct {
 	mu       sync.Mutex
 	limiters map[string]*ipLimiterEntry
 	rate     rate.Limit
 	burst    int
+	idleTTL  time.Duration
 	lastGC   time.Time
 }
 
@@ -512,17 +529,43 @@ type ipLimiterEntry struct {
 	lastSeen time.Time
 }
 
-func newIPRateLimiter(requests int, window time.Duration) *ipRateLimiter {
+// newIPRateLimiter builds a per-IP bucket of n units per window. A unit is one
+// request for the request limiter and one kilobyte for the per-IP upload
+// budget: the same bucket in a different denomination.
+func newIPRateLimiter(n int64, window time.Duration) *ipRateLimiter {
+	// A bucket's burst is an int. The upload budget counts kilobytes rather
+	// than bytes partly for this reason: the ceiling lands at ~2 TB per
+	// window even on a 32-bit build instead of at 2 GB.
+	if n > math.MaxInt32 {
+		n = math.MaxInt32
+	}
+
+	idleTTL := window
+	if idleTTL < rateLimiterIdleTTL {
+		idleTTL = rateLimiterIdleTTL
+	}
+
 	// rate.Limit is events per second.
 	return &ipRateLimiter{
 		limiters: make(map[string]*ipLimiterEntry),
-		rate:     rate.Limit(float64(requests) / window.Seconds()),
-		burst:    requests,
+		rate:     rate.Limit(float64(n) / window.Seconds()),
+		burst:    int(n),
+		idleTTL:  idleTTL,
 		lastGC:   time.Now(),
 	}
 }
 
 func (rl *ipRateLimiter) allow(ip string) bool {
+	return rl.allowN(ip, 1)
+}
+
+// allowN spends n units of ip's bucket. Asking for more than the bucket holds
+// can never succeed, so it is refused without draining what is there.
+func (rl *ipRateLimiter) allowN(ip string, n int64) bool {
+	if n > int64(rl.burst) {
+		return false
+	}
+
 	now := time.Now()
 
 	rl.mu.Lock()
@@ -535,9 +578,9 @@ func (rl *ipRateLimiter) allow(ip string) bool {
 
 	// Amortised sweep: at most once per TTL, on whichever request happens
 	// to arrive first. Cheap enough to do inline and needs no goroutine.
-	if now.Sub(rl.lastGC) > rateLimiterIdleTTL {
+	if now.Sub(rl.lastGC) > rl.idleTTL {
 		for key, e := range rl.limiters {
-			if now.Sub(e.lastSeen) > rateLimiterIdleTTL {
+			if now.Sub(e.lastSeen) > rl.idleTTL {
 				delete(rl.limiters, key)
 			}
 		}
@@ -546,7 +589,7 @@ func (rl *ipRateLimiter) allow(ip string) bool {
 	limiter := entry.limiter
 	rl.mu.Unlock()
 
-	return limiter.Allow()
+	return limiter.AllowN(now, int(n))
 }
 
 // rateLimit wraps a handler with per-IP rate limiting against the server's
@@ -582,7 +625,21 @@ func (s *Server) Run() {
 	var servers []*http.Server
 
 	if s.rateLimitRequests > 0 {
-		s.rateLimiter = newIPRateLimiter(s.rateLimitRequests, time.Minute)
+		s.rateLimiter = newIPRateLimiter(int64(s.rateLimitRequests), time.Minute)
+	}
+
+	if s.perIPUploadKB > 0 {
+		s.uploadBudget = newIPRateLimiter(s.perIPUploadKB, time.Hour)
+
+		// A budget below one permitted upload refuses every upload of that
+		// size forever, which looks like an outage rather than a limit.
+		if s.maxUploadSize > s.perIPUploadKB*1024 {
+			s.logger.Warn("Per-IP upload quota is smaller than one permitted upload; uploads at the maximum size can never succeed",
+				"per_ip_quota", formatSize(s.perIPUploadKB*1024),
+				"max_upload_size", formatSize(s.maxUploadSize))
+		}
+
+		s.logger.Info("Per-IP upload quota in force", "limit", formatSize(s.perIPUploadKB*1024)+"/hour")
 	}
 
 	// Seeded before the listener opens: an operator who configured a limit

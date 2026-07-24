@@ -233,6 +233,12 @@ var globalFlags = []cli.Flag{
 		EnvVars: []string{"MAX_STORAGE_SIZE"},
 	},
 	&cli.Int64Flag{
+		Name:    "per-ip-upload-quota",
+		Usage:   "max kilobytes one source address may upload per hour (0 = unlimited)",
+		Value:   0,
+		EnvVars: []string{"PER_IP_UPLOAD_QUOTA"},
+	},
+	&cli.Int64Flag{
 		Name:    "max-temp-size",
 		Usage:   "max total size of spool files under --temp-path, in kilobytes (0 = unlimited)",
 		Value:   0,
@@ -454,6 +460,10 @@ func New() *Cmd {
 
 		if v := c.Int64("max-storage-size"); v > 0 {
 			options = append(options, server.MaxStorageSize(v))
+		}
+
+		if v := c.Int64("per-ip-upload-quota"); v > 0 {
+			options = append(options, server.PerIPUploadQuota(v))
 		}
 
 		if v := c.Int64("max-temp-size"); v > 0 {

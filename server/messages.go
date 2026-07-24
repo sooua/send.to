@@ -50,6 +50,7 @@ const (
 	msgOwnerListFailed  msgID = "owner_list_failed"
 	msgServerFull       msgID = "server_full"
 	msgSpoolFull        msgID = "spool_full"
+	msgUploadQuota      msgID = "upload_quota"
 	msgUploadLength     msgID = "upload_length"
 	msgResumableNoPass  msgID = "resumable_no_password"
 	msgSessionFailed    msgID = "session_failed"
@@ -213,6 +214,11 @@ var messages = map[msgID]map[string]string{
 		"en": "This server has no room for another upload in progress",
 		"zh": "服务器暂时没有空间容纳新的上传",
 		"ja": "進行中のアップロードを追加する空き容量がありません",
+	},
+	msgUploadQuota: {
+		"en": "You have uploaded too much recently — try again later",
+		"zh": "你近期上传的数据量过大，请稍后再试",
+		"ja": "短時間にアップロードしすぎです。しばらくしてからやり直してください",
 	},
 	msgUploadLength: {
 		"en": "Upload-Length must be the total size in bytes",

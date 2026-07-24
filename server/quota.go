@@ -13,6 +13,11 @@ package server
 // Both answer 507 when exceeded. The first is a running counter seeded from the
 // backend at startup; the second is measured from the directory each time,
 // because it is small, changes constantly, and is the one an attacker aims at.
+//
+// Neither says anything about who filled the instance, so one client could
+// still reach MAX_STORAGE_SIZE on its own and leave everyone else with a 507.
+// PER_IP_UPLOAD_QUOTA is the third limit and the only per-client one: bytes per
+// hour per source address, answering 429 because it refills.
 
 import (
 	"context"
@@ -21,6 +26,8 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"time"
+
+	"github.com/tomasen/realip"
 )
 
 // storageQuota tracks how much the storage backend holds.
@@ -136,6 +143,34 @@ func (s *Server) checkStorageQuota(w http.ResponseWriter, r *http.Request, conte
 	s.logger.Warn("Storage quota exhausted",
 		"limit", s.maxStorageSize, "used", s.quota.usage(), "requested", contentLength)
 	s.httpError(w, r, http.StatusInsufficientStorage, msgServerFull)
+
+	return false
+}
+
+// checkUploadBudget spends n bytes of the source address's hourly upload
+// budget, writing the 429 itself.
+//
+// It is charged where the length is finally known and before anything is
+// stored, so a refusal costs the backend nothing. A resumable upload is charged
+// once, for its declared total, when the session is opened — abandoning it
+// still costs the budget, which is the point: the spool space was held.
+func (s *Server) checkUploadBudget(w http.ResponseWriter, r *http.Request, n int64) bool {
+	if s.uploadBudget == nil || n <= 0 {
+		return true
+	}
+
+	ip := realip.FromRequest(r)
+
+	// Rounded up to whole kilobytes, the unit the bucket counts in.
+	if s.uploadBudget.allowN(ip, (n+1023)/1024) {
+		return true
+	}
+
+	s.metrics.uploadErrors.Add(1)
+	s.metrics.rateLimited.Add(1)
+	s.logger.Warn("Per-IP upload quota exhausted",
+		"ip", ip, "limit", formatSize(s.perIPUploadKB*1024), "requested", n)
+	s.httpError(w, r, http.StatusTooManyRequests, msgUploadQuota)
 
 	return false
 }

@@ -61,6 +61,33 @@ func TestIPRateLimiterEvictsIdleEntries(t *testing.T) {
 	}
 }
 
+// An upload larger than the whole per-IP budget can never be satisfied. It has
+// to be refused without draining the bucket, or one oversized request would
+// take the client's remaining budget down with it.
+func TestIPRateLimiterRefusesOversizedRequestWithoutDraining(t *testing.T) {
+	rl := newIPRateLimiter(10, time.Hour)
+
+	if rl.allowN("10.0.0.1", 11) {
+		t.Error("a request larger than the bucket should never be allowed")
+	}
+
+	if !rl.allowN("10.0.0.1", 10) {
+		t.Error("the refused request drained the bucket")
+	}
+}
+
+// Eviction must never come before the bucket would have refilled: an hourly
+// budget swept after ten minutes is six free budgets an hour.
+func TestIPRateLimiterIdleTTLCoversTheWindow(t *testing.T) {
+	if ttl := newIPRateLimiter(1, time.Hour).idleTTL; ttl != time.Hour {
+		t.Errorf("hourly bucket idleTTL = %s, want 1h", ttl)
+	}
+
+	if ttl := newIPRateLimiter(1, time.Minute).idleTTL; ttl != rateLimiterIdleTTL {
+		t.Errorf("per-minute bucket idleTTL = %s, want the %s floor", ttl, rateLimiterIdleTTL)
+	}
+}
+
 // Every rate-limited route shares one budget rather than getting its own.
 func TestRateLimitSharedAcrossRoutes(t *testing.T) {
 	srvr, err := New(

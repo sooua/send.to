@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/sooua/send.to/server/storage"
@@ -18,14 +19,70 @@ import (
 func putBody(t *testing.T, srvr *Server, filename, body string) *httptest.ResponseRecorder {
 	t.Helper()
 
+	return putBodyFrom(t, srvr, filename, body, "192.0.2.1:1234")
+}
+
+// putBodyFrom uploads from a chosen source address, which is what the per-IP
+// budget keys on.
+func putBodyFrom(t *testing.T, srvr *Server, filename, body, remoteAddr string) *httptest.ResponseRecorder {
+	t.Helper()
+
 	req := httptest.NewRequest(http.MethodPut, "/"+filename, strings.NewReader(body))
 	req.ContentLength = int64(len(body))
+	req.RemoteAddr = remoteAddr
 	req = mux.SetURLVars(req, map[string]string{"filename": filename})
 
 	w := httptest.NewRecorder()
 	srvr.putHandler(w, req)
 
 	return w
+}
+
+// The total quotas say nothing about who filled the instance; this one does.
+func TestPerIPUploadQuotaRefusesTheGreedyClient(t *testing.T) {
+	srvr, tmpDir := newTestServer(t)
+	defer os.RemoveAll(tmpDir)
+
+	// Two kilobytes an hour: room for two of these and no more.
+	srvr.perIPUploadKB = 2
+	srvr.uploadBudget = newIPRateLimiter(srvr.perIPUploadKB, time.Hour)
+
+	body := strings.Repeat("x", 1024)
+
+	if code := putBodyFrom(t, srvr, "a.txt", body, "10.1.1.1:1").Code; code != http.StatusOK {
+		t.Fatalf("first upload = %d", code)
+	}
+	if code := putBodyFrom(t, srvr, "b.txt", body, "10.1.1.1:2").Code; code != http.StatusOK {
+		t.Fatalf("second upload = %d", code)
+	}
+
+	if code := putBodyFrom(t, srvr, "c.txt", body, "10.1.1.1:3").Code; code != http.StatusTooManyRequests {
+		t.Errorf("third upload = %d, want 429", code)
+	}
+
+	// Nothing is wrong with the instance — only with that one client.
+	if code := putBodyFrom(t, srvr, "d.txt", body, "10.2.2.2:1").Code; code != http.StatusOK {
+		t.Errorf("upload from another address = %d, want 200", code)
+	}
+}
+
+func TestPerIPUploadQuotaChargesResumableSessionsUpFront(t *testing.T) {
+	srvr, tmpDir := newSessionTestServer(t)
+	defer os.RemoveAll(tmpDir)
+
+	srvr.perIPUploadKB = 4
+	srvr.uploadBudget = newIPRateLimiter(srvr.perIPUploadKB, time.Hour)
+
+	if code := createSession(t, srvr, "a.bin", 4096, nil).Code; code != http.StatusCreated {
+		t.Fatalf("first session = %d", code)
+	}
+
+	// The first session is then abandoned, and is not refunded: chunks that are
+	// only charged when the last one arrives are free for anyone who never
+	// sends it.
+	if code := createSession(t, srvr, "b.bin", 4096, nil).Code; code != http.StatusTooManyRequests {
+		t.Errorf("second session = %d, want 429 — an abandoned session must still cost its budget", code)
+	}
 }
 
 func TestStorageQuotaRefusesWhenFull(t *testing.T) {

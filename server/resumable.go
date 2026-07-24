@@ -233,6 +233,13 @@ func (s *Server) createUploadSessionHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Charged here and not at the finishing chunk: the declared total is
+	// already known, and the chunks would otherwise be free until the last
+	// one — which an abandoned session never sends.
+	if !s.checkUploadBudget(w, r, total) {
+		return
+	}
+
 	contentType := contentTypeForFilename(vars["filename"])
 
 	// Validate the limit headers now; the same values are applied at finalise.

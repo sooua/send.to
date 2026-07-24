@@ -182,6 +182,12 @@ func (s *Server) storeMultipartFile(w http.ResponseWriter, r *http.Request, toke
 		return result, errors.New("storage quota exhausted")
 	}
 
+	// Charged per part: one multipart request carrying ten files spends the
+	// budget of ten files.
+	if !s.checkUploadBudget(w, r, contentLength) {
+		return result, errors.New("per-IP upload quota exhausted")
+	}
+
 	metadata, err := metadataForRequest(contentType, contentLength, s.randomTokenLength, r)
 	if err != nil {
 		s.metrics.uploadErrors.Add(1)
@@ -278,6 +284,10 @@ func (s *Server) putHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !s.checkStorageQuota(w, r, contentLength) {
+		return
+	}
+
+	if !s.checkUploadBudget(w, r, contentLength) {
 		return
 	}
 
