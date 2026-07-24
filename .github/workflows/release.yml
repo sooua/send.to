@@ -119,7 +119,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: ^1.25
+          # Pinned to a minor version, not a floor. `^1.25` meant the release
+          # toolchain moved to 1.26 on its own, which is how windows/arm
+          # disappeared mid-release. The patch level still floats.
+          go-version: '1.26.x'
 
       - name: Get project dependencies
         run: go mod download
